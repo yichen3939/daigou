@@ -9,6 +9,8 @@ export function initPersonalModule() {
   const depositField = document.getElementById('field-deposit-container');
   const form = document.getElementById('form-personal');
   const modal = document.getElementById('modal-personal');
+  const modalTitle = document.getElementById('modal-personal-title');
+  const editIdInput = document.getElementById('personal-edit-id');
   const btnOpenModal = document.getElementById('btn-open-personal-modal');
   const btnCancel = document.getElementById('btn-cancel-personal');
 
@@ -24,15 +26,24 @@ export function initPersonalModule() {
     }
   });
 
-  // Modal 控制
-  btnOpenModal.addEventListener('click', () => modal.classList.remove('hidden'));
+  // Modal 打開 (新增模式)
+  btnOpenModal.addEventListener('click', () => {
+    form.reset();
+    editIdInput.value = '';
+    modalTitle.textContent = '新增個人自購商品';
+    depositField.classList.add('hidden');
+    modal.classList.remove('hidden');
+  });
+
+  // Modal 取消
   btnCancel.addEventListener('click', () => {
     form.reset();
+    editIdInput.value = '';
     depositField.classList.add('hidden');
     modal.classList.add('hidden');
   });
 
-  // 表單送出新增
+  // 表單送出 (新增或編輯)
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const fd = new FormData(form);
@@ -40,26 +51,46 @@ export function initPersonalModule() {
     const quantity = Number(fd.get('quantity')) || 1;
     const payMethod = fd.get('payMethod');
     const deposit = payMethod === '訂金+尾款' ? (Number(fd.get('deposit')) || 0) : 0;
+    const editId = editIdInput.value;
 
-    const newItem = {
-      id: 'p_' + Date.now(),
-      name: fd.get('name'),
-      imageUrl: fd.get('imageUrl') || '',
-      quantity,
-      price,
-      channel: fd.get('channel') || '無',
-      payMethod,
-      deposit,
-      orderDate: fd.get('orderDate') || '',
-      arrivalMonth: fd.get('arrivalMonth') || '',
-      status: fd.get('status') || '已喊單',
-      notes: fd.get('notes') || ''
-    };
+    if (editId) {
+      // 編輯現有商品
+      const target = appState.personalPurchases.find(i => i.id === editId);
+      if (target) {
+        target.name = fd.get('name');
+        target.imageUrl = fd.get('imageUrl') || '';
+        target.quantity = quantity;
+        target.price = price;
+        target.channel = fd.get('channel') || '無';
+        target.payMethod = payMethod;
+        target.deposit = deposit;
+        target.orderDate = fd.get('orderDate') || '';
+        target.arrivalMonth = fd.get('arrivalMonth') || '';
+        target.status = fd.get('status') || '已喊單';
+        target.notes = fd.get('notes') || '';
+      }
+    } else {
+      // 新增商品
+      const newItem = {
+        id: 'p_' + Date.now(),
+        name: fd.get('name'),
+        imageUrl: fd.get('imageUrl') || '',
+        quantity,
+        price,
+        channel: fd.get('channel') || '無',
+        payMethod,
+        deposit,
+        orderDate: fd.get('orderDate') || '',
+        arrivalMonth: fd.get('arrivalMonth') || '',
+        status: fd.get('status') || '已喊單',
+        notes: fd.get('notes') || ''
+      };
+      appState.personalPurchases.unshift(newItem);
+    }
 
-    appState.personalPurchases.unshift(newItem);
     persistData();
-
     form.reset();
+    editIdInput.value = '';
     depositField.classList.add('hidden');
     modal.classList.add('hidden');
   });
@@ -99,7 +130,10 @@ export function renderPersonalList() {
           <div class="p-4 space-y-3">
             <div class="flex justify-between items-start gap-2">
               <h3 class="font-bold text-slate-800 text-base leading-snug">${item.name}</h3>
-              <button data-id="${item.id}" class="btn-delete-personal text-slate-300 hover:text-rose-500 transition text-sm">✕</button>
+              <div class="flex items-center space-x-1 shrink-0">
+                <button data-id="${item.id}" class="btn-edit-personal text-slate-400 hover:text-indigo-600 transition text-sm p-1" title="編輯商品">✏️</button>
+                <button data-id="${item.id}" class="btn-delete-personal text-slate-300 hover:text-rose-500 transition text-sm p-1" title="刪除商品">✕</button>
+              </div>
             </div>
             
             <div class="flex flex-wrap gap-1.5">
@@ -111,7 +145,7 @@ export function renderPersonalList() {
             <div class="text-xs space-y-1 text-slate-500 pt-2 border-t border-slate-100">
               <div class="flex justify-between">
                 <span>單價 × 數量</span>
-                <span class="font-medium text-slate-700">NT$ ${item.price} × ${item.quantity}</span>
+                <span class="font-medium text-slate-700">NT$ ${item.price.toLocaleString()} × ${item.quantity}</span>
               </div>
               <div class="flex justify-between text-sm font-bold text-slate-900">
                 <span>總價</span>
@@ -148,6 +182,46 @@ export function renderPersonalList() {
     `;
   }).join('');
 
+  // 綁定編輯按鈕
+  container.querySelectorAll('.btn-edit-personal').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const item = appState.personalPurchases.find(i => i.id === id);
+      if (item) {
+        const form = document.getElementById('form-personal');
+        const modal = document.getElementById('modal-personal');
+        const modalTitle = document.getElementById('modal-personal-title');
+        const editIdInput = document.getElementById('personal-edit-id');
+        const depositField = document.getElementById('field-deposit-container');
+
+        modalTitle.textContent = '修改個人自購商品';
+        editIdInput.value = item.id;
+        form.elements['name'].value = item.name;
+        form.elements['imageUrl'].value = item.imageUrl || '';
+        form.elements['quantity'].value = item.quantity;
+        form.elements['price'].value = item.price;
+        form.elements['channel'].value = item.channel || '';
+        form.elements['payMethod'].value = item.payMethod;
+        form.elements['deposit'].value = item.deposit || 0;
+        form.elements['orderDate'].value = item.orderDate || '';
+        form.elements['arrivalMonth'].value = item.arrivalMonth || '';
+        form.elements['status'].value = item.status;
+        form.elements['notes'].value = item.notes || '';
+
+        if (item.payMethod === '訂金+尾款') {
+          depositField.classList.remove('hidden');
+          depositField.querySelector('input').required = true;
+        } else {
+          depositField.classList.add('hidden');
+          depositField.querySelector('input').required = false;
+        }
+
+        modal.classList.remove('hidden');
+      }
+    });
+  });
+
+  // 綁定刪除按鈕
   container.querySelectorAll('.btn-delete-personal').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.dataset.id;
@@ -158,6 +232,7 @@ export function renderPersonalList() {
     });
   });
 
+  // 綁定狀態切換
   container.querySelectorAll('.select-change-status').forEach(sel => {
     sel.addEventListener('change', (e) => {
       const id = sel.dataset.id;
