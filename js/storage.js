@@ -4,7 +4,8 @@ const STORAGE_KEY = 'merch_tracker_app_data';
 
 export const appState = {
   personalPurchases: [],
-  groupOrders: []
+  groupOrders: [],
+  personalSales: []
 };
 
 // 訂閱資料更新的回呼函式清單
@@ -14,7 +15,9 @@ export function subscribeState(cb) {
 }
 
 function notifyAll() {
-  listeners.forEach(cb => cb(appState));
+  listeners.forEach(cb => {
+    try { cb(appState); } catch (e) { console.error(e); }
+  });
 }
 
 // 初始化監聽：優先使用 Firebase，次之 localStorage
@@ -26,6 +29,7 @@ export function initStorage() {
       if (data) {
         appState.personalPurchases = data.personalPurchases || [];
         appState.groupOrders = data.groupOrders || [];
+        appState.personalSales = data.personalSales || [];
       } else {
         loadFromLocalStorage();
       }
@@ -44,6 +48,7 @@ function loadFromLocalStorage() {
       const parsed = JSON.parse(local);
       appState.personalPurchases = parsed.personalPurchases || [];
       appState.groupOrders = parsed.groupOrders || [];
+      appState.personalSales = parsed.personalSales || [];
     } catch (e) {
       console.error("Local data parse error", e);
     }
@@ -81,9 +86,10 @@ export function importFromJsonFile(file) {
   reader.onload = (e) => {
     try {
       const imported = JSON.parse(e.target.result);
-      if (imported.personalPurchases && imported.groupOrders) {
-        appState.personalPurchases = imported.personalPurchases;
-        appState.groupOrders = imported.groupOrders;
+      if (imported.personalPurchases || imported.groupOrders || imported.personalSales) {
+        appState.personalPurchases = imported.personalPurchases || [];
+        appState.groupOrders = imported.groupOrders || [];
+        appState.personalSales = imported.personalSales || [];
         persistData();
         alert('匯入備份成功！');
       } else {
