@@ -9,6 +9,8 @@ export function initPersonalModule() {
   const depositField = document.getElementById('field-deposit-container');
   const form = document.getElementById('form-personal');
   const modal = document.getElementById('modal-personal');
+  const modalTitle = document.getElementById('modal-personal-title');
+  const editIdInput = document.getElementById('personal-edit-id');
   const btnOpenModal = document.getElementById('btn-open-personal-modal');
   const btnCancel = document.getElementById('btn-cancel-personal');
 
@@ -24,47 +26,75 @@ export function initPersonalModule() {
     }
   });
 
-  // Modal 控制
-  btnOpenModal.addEventListener('click', () => modal.classList.remove('hidden'));
+  // 打開新增 Modal
+  btnOpenModal.addEventListener('click', () => {
+    form.reset();
+    editIdInput.value = '';
+    modalTitle.textContent = '新增個人自購商品';
+    depositField.classList.add('hidden');
+    modal.classList.remove('hidden');
+  });
+
+  // 取消 Modal
   btnCancel.addEventListener('click', () => {
     form.reset();
+    editIdInput.value = '';
     depositField.classList.add('hidden');
     modal.classList.add('hidden');
   });
 
-  // 表單送出新增
+  // 儲存表單（支援新增與編輯更新）
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const fd = new FormData(form);
+    const editId = editIdInput.value;
     const price = Number(fd.get('price')) || 0;
     const quantity = Number(fd.get('quantity')) || 1;
     const payMethod = fd.get('payMethod');
     const deposit = payMethod === '訂金+尾款' ? (Number(fd.get('deposit')) || 0) : 0;
 
-    const newItem = {
-      id: 'p_' + Date.now(),
-      name: fd.get('name'),
-      imageUrl: fd.get('imageUrl') || '',
-      quantity,
-      price,
-      channel: fd.get('channel') || '無',
-      payMethod,
-      deposit,
-      orderDate: fd.get('orderDate') || '',
-      arrivalMonth: fd.get('arrivalMonth') || '',
-      status: fd.get('status') || '已喊單',
-      notes: fd.get('notes') || ''
-    };
+    if (editId) {
+      // 編輯既有資料
+      const target = appState.personalPurchases.find(i => i.id === editId);
+      if (target) {
+        target.name = fd.get('name');
+        target.imageUrl = fd.get('imageUrl') || '';
+        target.quantity = quantity;
+        target.price = price;
+        target.channel = fd.get('channel') || '無';
+        target.payMethod = payMethod;
+        target.deposit = deposit;
+        target.orderDate = fd.get('orderDate') || '';
+        target.arrivalMonth = fd.get('arrivalMonth') || '';
+        target.status = fd.get('status') || '已喊單';
+        target.notes = fd.get('notes') || '';
+      }
+    } else {
+      // 新增資料
+      const newItem = {
+        id: 'p_' + Date.now(),
+        name: fd.get('name'),
+        imageUrl: fd.get('imageUrl') || '',
+        quantity,
+        price,
+        channel: fd.get('channel') || '無',
+        payMethod,
+        deposit,
+        orderDate: fd.get('orderDate') || '',
+        arrivalMonth: fd.get('arrivalMonth') || '',
+        status: fd.get('status') || '已喊單',
+        notes: fd.get('notes') || ''
+      };
+      appState.personalPurchases.unshift(newItem);
+    }
 
-    appState.personalPurchases.unshift(newItem);
     persistData();
-
     form.reset();
+    editIdInput.value = '';
     depositField.classList.add('hidden');
     modal.classList.add('hidden');
   });
 
-  // 篩選監聽
   searchInput.addEventListener('input', () => renderPersonalList());
   statusFilter.addEventListener('change', () => renderPersonalList());
   payFilter.addEventListener('change', () => renderPersonalList());
@@ -99,7 +129,10 @@ export function renderPersonalList() {
           <div class="p-4 space-y-3">
             <div class="flex justify-between items-start gap-2">
               <h3 class="font-bold text-slate-800 text-base leading-snug">${item.name}</h3>
-              <button data-id="${item.id}" class="btn-delete-personal text-slate-300 hover:text-rose-500 transition text-sm">✕</button>
+              <div class="flex items-center space-x-1 shrink-0">
+                <button data-id="${item.id}" class="btn-edit-personal text-slate-400 hover:text-indigo-600 transition text-sm p-1" title="編輯商品">✎</button>
+                <button data-id="${item.id}" class="btn-delete-personal text-slate-300 hover:text-rose-500 transition text-sm p-1" title="刪除商品">✕</button>
+              </div>
             </div>
             
             <div class="flex flex-wrap gap-1.5">
@@ -148,6 +181,41 @@ export function renderPersonalList() {
     `;
   }).join('');
 
+  // 綁定編輯點擊事件
+  container.querySelectorAll('.btn-edit-personal').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const item = appState.personalPurchases.find(i => i.id === id);
+      if (!item) return;
+
+      document.getElementById('personal-edit-id').value = item.id;
+      document.getElementById('personal-field-name').value = item.name;
+      document.getElementById('personal-field-image').value = item.imageUrl || '';
+      document.getElementById('personal-field-qty').value = item.quantity;
+      document.getElementById('personal-field-price').value = item.price;
+      document.getElementById('personal-field-channel').value = item.channel || '';
+      document.getElementById('personal-paymethod-select').value = item.payMethod;
+      document.getElementById('personal-field-deposit').value = item.deposit || 0;
+      document.getElementById('personal-field-orderdate').value = item.orderDate || '';
+      document.getElementById('personal-field-arrival').value = item.arrivalMonth || '';
+      document.getElementById('personal-field-status').value = item.status;
+      document.getElementById('personal-field-notes').value = item.notes || '';
+
+      const depositField = document.getElementById('field-deposit-container');
+      if (item.payMethod === '訂金+尾款') {
+        depositField.classList.remove('hidden');
+        depositField.querySelector('input').required = true;
+      } else {
+        depositField.classList.add('hidden');
+        depositField.querySelector('input').required = false;
+      }
+
+      document.getElementById('modal-personal-title').textContent = '編輯個人自購商品';
+      document.getElementById('modal-personal').classList.remove('hidden');
+    });
+  });
+
+  // 綁定刪除事件
   container.querySelectorAll('.btn-delete-personal').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.dataset.id;
@@ -158,6 +226,7 @@ export function renderPersonalList() {
     });
   });
 
+  // 狀態快速更新
   container.querySelectorAll('.select-change-status').forEach(sel => {
     sel.addEventListener('change', (e) => {
       const id = sel.dataset.id;
