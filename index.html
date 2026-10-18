@@ -3,1151 +3,285 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>周邊記帳與揪團拆團小幫手 (Merch Tracker Pro)</title>
+  <title>周邊記帳與揪團拆團小幫手</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- FontAwesome 圖示庫 -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&display=swap');
-    body {
-      font-family: 'Noto Sans TC', sans-serif;
-      background-color: #f8fafc;
-    }
-    .badge-paid { background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
-    .badge-unpaid { background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
-    .badge-second-wait { background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
-    .badge-second-done { background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
-  </style>
+  <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+<body class="bg-slate-50 text-slate-800 min-h-screen">
 
   <!-- 頂部導覽列 -->
   <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
       <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-pink-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-100">
-          <i class="fa-solid fa-box-open text-lg"></i>
-        </div>
-        <div>
-          <h1 class="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-600 to-indigo-600">周邊記帳 & 揪團拆團小幫手</h1>
-          <p class="text-xs text-slate-400">自購追蹤・代購揪團・二補拆團試算</p>
-        </div>
+        <span class="text-2xl">📦</span>
+        <h1 class="text-lg font-bold text-slate-900 tracking-tight">周邊記帳與揪團拆團小幫手</h1>
       </div>
       <div class="flex items-center space-x-2">
-        <button onclick="exportData()" class="px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition flex items-center gap-1.5">
-          <i class="fa-solid fa-file-export"></i> 匯出備份
-        </button>
-        <label class="px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition flex items-center gap-1.5 cursor-pointer">
-          <i class="fa-solid fa-file-import"></i> 匯入還原
-          <input type="file" id="importInput" onchange="importData(event)" class="hidden" accept=".json">
+        <button id="btn-export-json" class="px-3 py-1.5 text-xs font-medium border border-slate-300 rounded hover:bg-slate-100 transition">匯出 JSON</button>
+        <label class="px-3 py-1.5 text-xs font-medium border border-slate-300 rounded hover:bg-slate-100 cursor-pointer transition">
+          匯入 JSON
+          <input type="file" id="file-import-json" accept=".json" class="hidden">
         </label>
       </div>
     </div>
+
+    <!-- 頁籤切換按鈕列 -->
+    <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-8 border-t border-slate-100">
+      <button class="nav-tab active-tab" data-target="tab-personal">個人自購清單</button>
+      <button class="nav-tab inactive-tab" data-target="tab-group">揪團拆團與代購</button>
+      <button class="nav-tab inactive-tab" data-target="tab-dashboard">財務統計看板</button>
+    </nav>
   </header>
 
-  <!-- 主內容區 -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full space-y-6">
+  <!-- 主內容容器 -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
-    <!-- 頁籤切換與按鈕區 -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-      <!-- 頁籤 -->
-      <div class="inline-flex p-1 bg-slate-200/70 rounded-xl text-sm font-medium">
-        <button id="tab-btn-self" onclick="switchTab('self')" class="px-4 py-2 rounded-lg bg-white shadow-sm font-bold text-indigo-600 transition flex items-center gap-2">
-          <i class="fa-solid fa-basket-shopping"></i> 個人自購清單
-          <span id="badge-self-count" class="px-1.5 py-0.5 text-xs rounded-full bg-indigo-50 text-indigo-600 ml-1">0</span>
-        </button>
-        <button id="tab-btn-group" onclick="switchTab('group')" class="px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center gap-2">
-          <i class="fa-solid fa-users-viewfinder"></i> 揪團拆團與代購
-          <span id="badge-group-count" class="px-1.5 py-0.5 text-xs rounded-full bg-slate-300 text-slate-700 ml-1">0</span>
-        </button>
-        <button id="tab-btn-stats" onclick="switchTab('stats')" class="px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center gap-2">
-          <i class="fa-solid fa-chart-pie"></i> 財務統計看板
-        </button>
-      </div>
-
-      <!-- 操作按鈕 -->
-      <div class="flex items-center gap-3">
-        <button id="add-self-btn" onclick="openSelfModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-sm shadow-indigo-200 transition flex items-center gap-2">
-          <i class="fa-solid fa-plus"></i> 新增自購商品
-        </button>
-        <button id="add-group-btn" onclick="openGroupModal()" class="hidden px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white text-sm font-medium rounded-xl shadow-sm shadow-pink-200 transition flex items-center gap-2">
-          <i class="fa-solid fa-plus"></i> 開設新揪團/代購
-        </button>
-      </div>
-    </div>
-
-    <!-- 財務指標儀表板 -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-        <div>
-          <p class="text-xs font-medium text-slate-400">自購總花費 (NT$)</p>
-          <h3 id="stat-self-total" class="text-xl font-bold text-slate-800 mt-0.5">NT$ 0</h3>
-          <p id="stat-self-deposit" class="text-xs text-indigo-500 mt-1">含已付訂金: NT$ 0</p>
-        </div>
-        <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg">
-          <i class="fa-solid fa-wallet"></i>
-        </div>
-      </div>
-      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-        <div>
-          <p class="text-xs font-medium text-slate-400">揪團成本 (總台幣)</p>
-          <h3 id="stat-group-cost" class="text-xl font-bold text-slate-800 mt-0.5">NT$ 0</h3>
-          <p id="stat-group-jpy" class="text-xs text-slate-400 mt-1">折合原幣: ¥ 0</p>
-        </div>
-        <div class="w-10 h-10 rounded-xl bg-pink-50 text-pink-600 flex items-center justify-center text-lg">
-          <i class="fa-solid fa-yen-sign"></i>
-        </div>
-      </div>
-      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-        <div>
-          <p class="text-xs font-medium text-slate-400">拆團一補實收/應收</p>
-          <h3 id="stat-group-income" class="text-xl font-bold text-emerald-600 mt-0.5">NT$ 0 / 0</h3>
-          <p id="stat-group-pending" class="text-xs text-amber-500 mt-1">待收一補: NT$ 0</p>
-        </div>
-        <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">
-          <i class="fa-solid fa-hand-holding-dollar"></i>
-        </div>
-      </div>
-      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-        <div>
-          <p class="text-xs font-medium text-slate-400">二補待收款人數</p>
-          <h3 id="stat-second-pending" class="text-xl font-bold text-amber-600 mt-0.5">0 人待付</h3>
-          <p id="stat-second-amount" class="text-xs text-slate-500 mt-1">待收總計: NT$ 0</p>
-        </div>
-        <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg">
-          <i class="fa-solid fa-truck-fast"></i>
-        </div>
-      </div>
-    </div>
-
-    <!-- 頁籤一：自購清單 -->
-    <section id="section-self" class="space-y-4">
-      <div class="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
-        <div class="relative w-full sm:w-80">
-          <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-sm"></i>
-          <input type="text" id="self-search" oninput="renderSelfList()" placeholder="搜尋商品名稱、賣家、平台..." class="w-full pl-9 pr-4 py-1.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-        </div>
-        <div class="flex items-center gap-2 w-full sm:w-auto">
-          <select id="self-filter-status" onchange="renderSelfList()" class="px-3 py-1.5 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option value="all">所有出貨狀態</option>
-            <option value="已預購">已預購</option>
-            <option value="待出貨">待出貨</option>
-            <option value="日本集運中">日本集運中</option>
-            <option value="已抵台">已抵台</option>
+    <!-- 頁籤一：個人自購模組 -->
+    <section id="tab-personal" class="tab-pane">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+        <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+          <input type="text" id="personal-search" placeholder="搜尋商品名稱 / 購買管道..." class="px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-64">
+          <select id="personal-filter-status" class="px-3 py-1.5 text-sm border rounded-lg bg-white">
+            <option value="">全部物流狀態</option>
+            <option value="已喊單">已喊單</option>
+            <option value="賣貨便已下單">賣貨便已下單</option>
             <option value="已完成">已完成</option>
           </select>
-          <select id="self-filter-payment" onchange="renderSelfList()" class="px-3 py-1.5 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option value="all">所有付款方式</option>
-            <option value="取貨付款">取貨付款 (貨付)</option>
+          <select id="personal-filter-pay" class="px-3 py-1.5 text-sm border rounded-lg bg-white">
+            <option value="">全部付款方式</option>
+            <option value="取貨付款">取貨付款</option>
             <option value="全額匯款">全額匯款</option>
             <option value="訂金+尾款">訂金+尾款</option>
             <option value="信用卡">信用卡</option>
           </select>
         </div>
+        <button id="btn-open-personal-modal" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition shrink-0">+ 新增自購商品</button>
       </div>
 
-      <div id="self-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <!-- JS 動態生成 -->
-      </div>
-    </section>
-
-    <!-- 頁籤二：揪團拆團與代購 -->
-    <section id="section-group" class="hidden space-y-4">
-      <div class="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
-        <div class="relative w-full sm:w-80">
-          <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-sm"></i>
-          <input type="text" id="group-search" oninput="renderGroupList()" placeholder="搜尋揪團商品、角色、買家..." class="w-full pl-9 pr-4 py-1.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-pink-500">
-        </div>
-        <div class="text-xs text-slate-500">
-          💡 點選商品卡片右上角箭頭即可展開/收合角色明細，點選狀態標籤可快速切換
-        </div>
-      </div>
-
-      <div id="group-list-container" class="space-y-4">
-        <!-- JS 動態生成 -->
+      <div id="personal-items-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <!-- 動態渲染自購卡片 -->
       </div>
     </section>
 
-    <!-- 頁籤三：統計與圖表分析 -->
-    <section id="section-stats" class="hidden space-y-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <h3 class="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
-            <i class="fa-solid fa-chart-pie text-indigo-500"></i> 自購各購買管道花費佔比
-          </h3>
-          <div class="h-64 flex items-center justify-center">
-            <canvas id="chart-channel"></canvas>
+    <!-- 頁籤二：揪團拆團模組 -->
+    <section id="tab-group" class="tab-pane hidden">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+        <div class="flex items-center gap-2 w-full sm:w-auto">
+          <input type="text" id="group-search" placeholder="搜尋主商品 / 角色 / 買家帳號..." class="px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-80">
+        </div>
+        <button id="btn-open-group-modal" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition shrink-0">+ 發起新揪團</button>
+      </div>
+
+      <div id="group-items-container" class="space-y-6">
+        <!-- 動態渲染主團與角色列表 -->
+      </div>
+    </section>
+
+    <!-- 頁籤三：財務統計看板 -->
+    <section id="tab-dashboard" class="tab-pane hidden space-y-8">
+      <!-- 4 大 KPI 卡片 -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">自購總花費</div>
+          <div id="kpi-personal-cost" class="text-2xl font-bold text-slate-900 mt-2">NT$ 0</div>
+          <div id="kpi-personal-deposit" class="text-xs text-amber-600 mt-1">已付訂金：NT$ 0</div>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">揪團總成本</div>
+          <div id="kpi-group-cost" class="text-2xl font-bold text-slate-900 mt-2">NT$ 0</div>
+          <div id="kpi-group-cost-jpy" class="text-xs text-slate-500 mt-1">折合日幣：¥ 0</div>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">一補收款進度</div>
+          <div id="kpi-first-pay-progress" class="text-2xl font-bold text-emerald-600 mt-2">NT$ 0 / 0</div>
+          <div id="kpi-first-pay-unpaid" class="text-xs text-rose-500 mt-1">待收一補：NT$ 0</div>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">二補追蹤</div>
+          <div id="kpi-second-pay-amount" class="text-2xl font-bold text-blue-600 mt-2">NT$ 0</div>
+          <div id="kpi-second-pay-count" class="text-xs text-slate-500 mt-1">待補款人數：0 人</div>
+        </div>
+      </div>
+
+      <!-- 圖表區 -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-700 mb-4">自購通路支出分佈</h3>
+          <div class="relative h-64">
+            <canvas id="chart-personal-channel"></canvas>
           </div>
         </div>
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <h3 class="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
-            <i class="fa-solid fa-scale-balanced text-pink-500"></i> 揪團拆團：成本 vs 應收 vs 已實收
-          </h3>
-          <div class="h-64 flex items-center justify-center">
-            <canvas id="chart-group-balance"></canvas>
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-700 mb-4">揪團成本 vs 實收總覽</h3>
+          <div class="relative h-64">
+            <canvas id="chart-group-finance"></canvas>
           </div>
         </div>
       </div>
     </section>
-
   </main>
 
-  <!-- 自購 Modal -->
-  <div id="modal-self" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 space-y-4">
-      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
-        <h3 id="modal-self-title" class="text-base font-bold text-slate-800">新增自購商品</h3>
-        <button onclick="closeSelfModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
-      </div>
-      <form id="form-self" onsubmit="saveSelfItem(event)" class="space-y-3.5 text-xs">
-        <input type="hidden" id="self-id">
+  <!-- Modal: 新增自購商品 -->
+  <div id="modal-personal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+      <h2 class="text-lg font-bold text-slate-900">新增個人自購商品</h2>
+      <form id="form-personal" class="space-y-3">
         <div>
-          <label class="block font-medium text-slate-600 mb-1">商品名稱 *</label>
-          <input type="text" id="self-name" required placeholder="如：排球少年 10週年 拍立得 盒裝" class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500">
+          <label class="block text-xs font-medium text-slate-700">商品名稱 *</label>
+          <input type="text" name="name" required class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700">商品圖片 URL</label>
+          <input type="url" name="imageUrl" placeholder="https://..." class="w-full px-3 py-1.5 border rounded text-sm mt-1">
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block font-medium text-slate-600 mb-1">單價 (NT$) *</label>
-            <input type="number" id="self-price" required min="0" oninput="calculateSelfTotal()" placeholder="0" class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500">
+            <label class="block text-xs font-medium text-slate-700">購買數量 *</label>
+            <input type="number" name="quantity" min="1" value="1" required class="w-full px-3 py-1.5 border rounded text-sm mt-1">
           </div>
           <div>
-            <label class="block font-medium text-slate-600 mb-1">數量 *</label>
-            <input type="number" id="self-qty" required min="1" value="1" oninput="calculateSelfTotal()" class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500">
+            <label class="block text-xs font-medium text-slate-700">單價 (NT$) *</label>
+            <input type="number" name="price" min="0" required class="w-full px-3 py-1.5 border rounded text-sm mt-1">
           </div>
         </div>
-        <div class="text-right text-xs text-indigo-600 font-bold" id="self-calc-total">
-          總價計算：NT$ 0
+        <div>
+          <label class="block text-xs font-medium text-slate-700">賣家 / 購買管道</label>
+          <input type="text" name="channel" placeholder="例：煤爐代購、安利美特" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block font-medium text-slate-600 mb-1">賣家 / 購買管道</label>
-            <input type="text" id="self-seller" placeholder="如：Mercari代購、安利美特" class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500">
-          </div>
-          <div>
-            <label class="block font-medium text-slate-600 mb-1">付款方式 *</label>
-            <select id="self-payment" onchange="toggleDepositField()" class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500">
-              <option value="取貨付款">取貨付款 (貨付)</option>
+            <label class="block text-xs font-medium text-slate-700">付款方式</label>
+            <select name="payMethod" id="personal-paymethod-select" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+              <option value="取貨付款">取貨付款</option>
               <option value="全額匯款">全額匯款</option>
-              <option value="訂金+尾款">訂金 + 尾款</option>
+              <option value="訂金+尾款">訂金+尾款</option>
               <option value="信用卡">信用卡</option>
             </select>
           </div>
-        </div>
-
-        <div id="self-deposit-container" class="hidden p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2">
-          <div class="flex items-center justify-between">
-            <label class="block font-bold text-amber-800">已付訂金金額 (NT$) *</label>
-            <span id="self-remaining-note" class="text-amber-700 text-xs font-semibold">待付尾款: NT$ 0</span>
+          <div id="field-deposit-container" class="hidden">
+            <label class="block text-xs font-medium text-slate-700">已付訂金 (NT$) *</label>
+            <input type="number" name="deposit" min="0" value="0" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
           </div>
-          <input type="number" id="self-deposit" min="0" oninput="calculateDepositNote()" placeholder="請輸入已付款的訂金" class="w-full px-3 py-2 border rounded-xl border-amber-300 focus:ring-2 focus:ring-amber-500 bg-white">
         </div>
-
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block font-medium text-slate-600 mb-1">預購/下單時間</label>
-            <input type="date" id="self-preorder-date" class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500">
+            <label class="block text-xs font-medium text-slate-700">下單日期</label>
+            <input type="date" name="orderDate" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
           </div>
           <div>
-            <label class="block font-medium text-slate-600 mb-1">預計到貨時間</label>
-            <input type="month" id="self-arrival-date" class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500">
+            <label class="block text-xs font-medium text-slate-700">預計抵台月份</label>
+            <input type="month" name="arrivalMonth" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
           </div>
         </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block font-medium text-slate-600 mb-1">進度狀態</label>
-            <select id="self-status" class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500">
-              <option value="已預購">已預購</option>
-              <option value="待出貨">待出貨</option>
-              <option value="日本集運中">日本集運中</option>
-              <option value="已抵台">已抵台</option>
-              <option value="已完成">已完成</option>
-            </select>
-          </div>
-          <div>
-            <label class="block font-medium text-slate-600 mb-1">商品圖片連結 (URL)</label>
-            <input type="url" id="self-image" placeholder="https://..." class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500">
-          </div>
-        </div>
-
         <div>
-          <label class="block font-medium text-slate-600 mb-1">備註說明</label>
-          <textarea id="self-note" rows="2" placeholder="備註賣貨便單號或出貨提醒..." class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500"></textarea>
+          <label class="block text-xs font-medium text-slate-700">物流進度</label>
+          <select name="status" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+            <option value="已喊單">已喊單</option>
+            <option value="賣貨便已下單">賣貨便已下單</option>
+            <option value="已完成">已完成</option>
+          </select>
         </div>
-
-        <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
-          <button type="button" onclick="closeSelfModal()" class="px-4 py-2 rounded-xl text-slate-500 hover:bg-slate-100 font-medium">取消</button>
-          <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium shadow-sm shadow-indigo-100">儲存自購</button>
+        <div>
+          <label class="block text-xs font-medium text-slate-700">備註說明</label>
+          <textarea name="notes" rows="2" placeholder="寄件單號、賣貨便單號等" class="w-full px-3 py-1.5 border rounded text-sm mt-1"></textarea>
+        </div>
+        <div class="flex justify-end space-x-2 pt-3 border-t">
+          <button type="button" id="btn-cancel-personal" class="px-4 py-2 border rounded-lg text-sm">取消</button>
+          <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium">儲存</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- 揪團 主商品 Modal -->
-  <div id="modal-group" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl shadow-xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
-      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
-        <h3 id="modal-group-title" class="text-base font-bold text-slate-800">建立新揪團 / 代購商品</h3>
-        <button onclick="closeGroupModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
-      </div>
-      <form id="form-group" onsubmit="saveGroupItem(event)" class="space-y-3.5 text-xs">
-        <input type="hidden" id="group-id">
+  <!-- Modal: 新增主團 -->
+  <div id="modal-group" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+      <h2 class="text-lg font-bold text-slate-900">發起新揪團主檔</h2>
+      <form id="form-group" class="space-y-3">
         <div>
-          <label class="block font-medium text-slate-600 mb-1">團務商品名稱 *</label>
-          <input type="text" id="group-name" required placeholder="如：咒術迴戰 澀谷事變 盲盒徽章 (全10種)" class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-pink-500">
+          <label class="block text-xs font-medium text-slate-700">商品名稱 *</label>
+          <input type="text" name="name" required placeholder="例：咒術迴戰 盲盒徽章 全10種" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
         </div>
-
+        <div>
+          <label class="block text-xs font-medium text-slate-700">商品圖片 URL</label>
+          <input type="url" name="imageUrl" placeholder="https://..." class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+        </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block font-medium text-slate-600 mb-1">總原幣金額 (如日幣 ¥)</label>
-            <input type="number" id="group-jpy" min="0" placeholder="5500" class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-pink-500">
-          </div>
-          <div>
-            <label class="block font-medium text-slate-600 mb-1">自行設定總成本 (NT$) *</label>
-            <input type="number" id="group-cost-twd" required min="0" placeholder="1350" class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-pink-500">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block font-medium text-slate-600 mb-1">預估/代購總售價 (NT$)</label>
-            <input type="number" id="group-resale-twd" min="0" placeholder="可填寫代購一口價或拆團總計" class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-pink-500">
-          </div>
-          <div>
-            <label class="block font-medium text-slate-600 mb-1">揪團類別</label>
-            <select id="group-category" class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-pink-500">
-              <option value="徽章/盲抽拆團">徽章 / 盲抽拆團</option>
-              <option value="壓克力/立牌拆團">壓克力 / 立牌拆團</option>
+            <label class="block text-xs font-medium text-slate-700">揪團類別</label>
+            <select name="category" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+              <option value="徽章拆團">徽章拆團</option>
+              <option value="壓克力立牌">壓克力立牌</option>
               <option value="官方通販代購">官方通販代購</option>
-              <option value="二手煤爐代切">二手代切代購</option>
-              <option value="其他團務">其他團務</option>
+              <option value="二手煤爐代切">二手煤爐代切</option>
+              <option value="其他">其他</option>
             </select>
           </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block font-medium text-slate-600 mb-1">下單/預購日期</label>
-            <input type="date" id="group-order-date" class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-pink-500">
-          </div>
-          <div>
-            <label class="block font-medium text-slate-600 mb-1">商品圖片連結 (URL)</label>
-            <input type="url" id="group-image" placeholder="https://..." class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-pink-500">
+            <label class="block text-xs font-medium text-slate-700">下單 / 預購日期</label>
+            <input type="date" name="orderDate" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
           </div>
         </div>
-
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-700">總原幣 (JPY ¥)</label>
+            <input type="number" name="costJpy" min="0" value="0" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-700">台幣成本 (NT$) *</label>
+            <input type="number" name="costTwd" min="0" required value="0" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-700">預估售價 (NT$)</label>
+            <input type="number" name="targetPrice" min="0" value="0" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+          </div>
+        </div>
         <div>
-          <label class="block font-medium text-slate-600 mb-1">開團備註</label>
-          <textarea id="group-note" rows="2" placeholder="如：匯率0.245計算，國際運費實秤每100g 25元，抵台走賣貨便二補。" class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-pink-500"></textarea>
+          <label class="block text-xs font-medium text-slate-700">開團備註</label>
+          <textarea name="notes" rows="2" placeholder="匯率換算依據、國際運費每克計費公式、寄件包材規定等" class="w-full px-3 py-1.5 border rounded text-sm mt-1"></textarea>
         </div>
-
-        <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
-          <button type="button" onclick="closeGroupModal()" class="px-4 py-2 rounded-xl text-slate-500 hover:bg-slate-100 font-medium">取消</button>
-          <button type="submit" class="px-5 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-xl font-medium shadow-sm shadow-pink-100">儲存揪團</button>
+        <div class="flex justify-end space-x-2 pt-3 border-t">
+          <button type="button" id="btn-cancel-group" class="px-4 py-2 border rounded-lg text-sm">取消</button>
+          <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium">建立揪團</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- 角色拆團 Modal -->
-  <div id="modal-role" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6 space-y-4">
-      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
-        <h3 id="modal-role-title" class="text-base font-bold text-slate-800">新增認領角色</h3>
-        <button onclick="closeRoleModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
-      </div>
-      <form id="form-role" onsubmit="saveRoleItem(event)" class="space-y-3.5 text-xs">
-        <input type="hidden" id="role-group-id">
-        <input type="hidden" id="role-id">
-
+  <!-- Modal: 新增/編輯角色認領明細 -->
+  <div id="modal-subitem" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 space-y-4">
+      <h2 class="text-base font-bold text-slate-900">新增認領角色</h2>
+      <form id="form-subitem" class="space-y-3">
+        <input type="hidden" name="groupId" id="subitem-group-id">
         <div>
-          <label class="block font-medium text-slate-600 mb-1">角色/款式名稱 *</label>
-          <input type="text" id="role-name" required placeholder="如：五條悟、虎杖悠仁、A賞等" class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-pink-500">
+          <label class="block text-xs font-medium text-slate-700">角色 / 款式名稱 *</label>
+          <input type="text" name="characterName" required placeholder="例：五條悟、A賞" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
         </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block font-medium text-slate-600 mb-1">認領買家暱稱/帳號 *</label>
-            <input type="text" id="role-buyer" required placeholder="如：FB小林 / @buyer123" class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-pink-500">
-          </div>
-          <div>
-            <label class="block font-medium text-slate-600 mb-1">拆團定價 (NT$) *</label>
-            <input type="number" id="role-price" required min="0" placeholder="150" class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-pink-500">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block font-medium text-slate-600 mb-1">一補 (本體款) 狀態</label>
-            <select id="role-paid" class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-pink-500">
-              <option value="false">❌ 未匯款</option>
-              <option value="true">✅ 已匯款</option>
-            </select>
-          </div>
-          <div>
-            <label class="block font-medium text-slate-600 mb-1">二補 (運費/包材) 狀態</label>
-            <select id="role-second-status" class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-pink-500">
-              <option value="未通知">⚪ 未通知</option>
-              <option value="已通知待付">⏳ 已通知待付</option>
-              <option value="已結清">🎉 已結清</option>
-            </select>
-          </div>
-        </div>
-
         <div>
-          <label class="block font-medium text-slate-600 mb-1">二補金額 (NT$)</label>
-          <input type="number" id="role-second-fee" min="0" value="0" placeholder="二補金額（可後補）" class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-pink-500">
+          <label class="block text-xs font-medium text-slate-700">認領買家暱稱 / 帳號</label>
+          <input type="text" name="buyer" placeholder="買家帳號" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
         </div>
-
         <div>
-          <label class="block font-medium text-slate-600 mb-1">買家備註 (交易方式/賣貨便單號)</label>
-          <input type="text" id="role-note" placeholder="如：賣貨便取貨、可綁物、已給寄件代碼" class="w-full px-3 py-2 border rounded-xl border-slate-200 focus:ring-2 focus:ring-pink-500">
+          <label class="block text-xs font-medium text-slate-700">拆團價格 (NT$) *</label>
+          <input type="number" name="price" min="0" required value="0" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
         </div>
-
-        <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
-          <button type="button" onclick="closeRoleModal()" class="px-4 py-2 rounded-xl text-slate-500 hover:bg-slate-100 font-medium">取消</button>
-          <button type="submit" class="px-5 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-xl font-medium">儲存角色</button>
+        <div>
+          <label class="block text-xs font-medium text-slate-700">買家備註</label>
+          <input type="text" name="buyerNote" placeholder="賣貨便、綁物說明等" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+        </div>
+        <div class="flex justify-end space-x-2 pt-3 border-t">
+          <button type="button" id="btn-cancel-subitem" class="px-3 py-1.5 border rounded-lg text-xs">取消</button>
+          <button type="submit" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium">儲存</button>
         </div>
       </form>
     </div>
   </div>
 
-  <script>
-    // 預設資料
-    let selfItems = JSON.parse(localStorage.getItem('merch_self_items')) || [
-      {
-        id: 's1',
-        name: '排球少年 10週年 拍立得 盒裝',
-        price: 1350,
-        qty: 1,
-        seller: 'Mercari 煤爐代購',
-        payment: '訂金+尾款',
-        deposit: 500,
-        preorderDate: '2026-09-15',
-        arrivalDate: '2026-11',
-        status: '日本集運中',
-        image: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=400&auto=format&fit=crop&q=80',
-        note: '已付訂金500元，等日本倉到貨補運費走賣貨便。'
-      },
-      {
-        id: 's2',
-        name: '吉伊卡哇 魔法少女 造型毛絨玩偶 (小八)',
-        price: 680,
-        qty: 2,
-        seller: '吉伊卡哇官方通販',
-        payment: '全額匯款',
-        deposit: 0,
-        preorderDate: '2026-10-01',
-        arrivalDate: '2026-12',
-        status: '已預購',
-        image: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?w=400&auto=format&fit=crop&q=80',
-        note: '全額匯款已確認入帳，預約12月發貨'
-      }
-    ];
-
-    let groupItems = JSON.parse(localStorage.getItem('merch_group_items')) || [
-      {
-        id: 'g1',
-        name: '咒術迴戰 澀谷事變 紀念馬口鐵徽章 (全10種)',
-        jpy: 5500,
-        costTwd: 1320,
-        resaleTwd: 1500,
-        category: '徽章/盲抽拆團',
-        orderDate: '2026-10-10',
-        image: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=400&auto=format&fit=crop&q=80',
-        note: '一中盒10入不重複。成本NT$1320，平均一顆約132，依人氣調配定價。',
-        roles: [
-          { id: 'r1', name: '五條悟', buyer: '小林 (FB)', price: 200, paid: true, secondStatus: '已通知待付', secondFee: 35, note: '賣貨便寄送' },
-          { id: 'r2', name: '夏油傑', buyer: 'Yuuki (Twitter)', price: 180, paid: true, secondStatus: '已結清', secondFee: 35, note: '已店到店寄出' },
-          { id: 'r3', name: '虎杖悠仁', buyer: '阿明', price: 140, paid: false, secondStatus: '未通知', secondFee: 0, note: '通知匯款中' },
-          { id: 'r4', name: '伏黑惠', buyer: 'Momo', price: 160, paid: true, secondStatus: '已通知待付', secondFee: 35, note: '等二補' },
-          { id: 'r5', name: '釘崎野薔薇', buyer: '自留/未認領', price: 120, paid: false, secondStatus: '未通知', secondFee: 0, note: '待捆' }
-        ]
-      }
-    ];
-
-    let activeTab = 'self';
-    let expandedGroupCards = {};
-
-    function saveToStorage() {
-      localStorage.setItem('merch_self_items', JSON.stringify(selfItems));
-      localStorage.setItem('merch_group_items', JSON.stringify(groupItems));
-      updateSummaryKPIs();
-    }
-
-    function switchTab(tab) {
-      activeTab = tab;
-      document.getElementById('section-self').classList.toggle('hidden', tab !== 'self');
-      document.getElementById('section-group').classList.toggle('hidden', tab !== 'group');
-      document.getElementById('section-stats').classList.toggle('hidden', tab !== 'stats');
-
-      document.getElementById('add-self-btn').classList.toggle('hidden', tab !== 'self');
-      document.getElementById('add-group-btn').classList.toggle('hidden', tab !== 'group');
-
-      const tabs = ['self', 'group', 'stats'];
-      tabs.forEach(t => {
-        const btn = document.getElementById(`tab-btn-${t}`);
-        if (t === tab) {
-          btn.className = 'px-4 py-2 rounded-lg bg-white shadow-sm font-bold text-indigo-600 transition flex items-center gap-2';
-        } else {
-          btn.className = 'px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center gap-2';
-        }
-      });
-
-      if (tab === 'stats') {
-        renderCharts();
-      }
-    }
-
-    function renderSelfList() {
-      const container = document.getElementById('self-list-container');
-      const search = document.getElementById('self-search').value.toLowerCase();
-      const statusFilter = document.getElementById('self-filter-status').value;
-      const paymentFilter = document.getElementById('self-filter-payment').value;
-
-      const filtered = selfItems.filter(item => {
-        const matchSearch = item.name.toLowerCase().includes(search) || (item.seller && item.seller.toLowerCase().includes(search));
-        const matchStatus = statusFilter === 'all' || item.status === statusFilter;
-        const matchPayment = paymentFilter === 'all' || item.payment === paymentFilter;
-        return matchSearch && matchStatus && matchPayment;
-      });
-
-      document.getElementById('badge-self-count').innerText = selfItems.length;
-
-      if (filtered.length === 0) {
-        container.innerHTML = `
-          <div class="col-span-full py-16 text-center text-slate-400 bg-white rounded-3xl border border-dashed border-slate-300">
-            <i class="fa-solid fa-cart-shopping text-3xl mb-2 text-slate-300"></i>
-            <p>尚無符合的自購商品紀錄，點擊右上角「新增自購商品」吧！</p>
-          </div>
-        `;
-        return;
-      }
-
-      container.innerHTML = filtered.map(item => {
-        const total = item.price * item.qty;
-        const deposit = item.payment === '訂金+尾款' ? (item.deposit || 0) : 0;
-        const remaining = total - deposit;
-
-        return `
-          <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between">
-            <div>
-              <div class="relative h-44 bg-slate-100 overflow-hidden">
-                <img src="${item.image || 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=400'}" alt="${item.name}" class="w-full h-full object-cover">
-                <span class="absolute top-3 right-3 text-xs font-semibold px-2.5 py-1 rounded-full bg-white/90 backdrop-blur-md shadow-sm text-slate-700">
-                  ${item.status}
-                </span>
-                <span class="absolute bottom-3 left-3 text-xs font-semibold px-2 py-0.5 rounded-lg bg-slate-900/75 text-white">
-                  ${item.seller || '自購'}
-                </span>
-              </div>
-              <div class="p-4 space-y-2">
-                <h4 class="font-bold text-slate-800 text-sm line-clamp-2">${item.name}</h4>
-                <div class="flex justify-between items-baseline">
-                  <span class="text-xs text-slate-400">單價 NT$${item.price.toLocaleString()} × ${item.qty}</span>
-                  <span class="text-base font-bold text-indigo-600">NT$ ${total.toLocaleString()}</span>
-                </div>
-
-                <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs space-y-1">
-                  <div class="flex justify-between items-center">
-                    <span class="text-slate-500 font-medium">付款方式：</span>
-                    <span class="font-bold ${item.payment === '訂金+尾款' ? 'text-amber-600' : 'text-slate-700'}">${item.payment}</span>
-                  </div>
-                  ${item.payment === '訂金+尾款' ? `
-                    <div class="flex justify-between items-center text-amber-700 pt-1 border-t border-amber-100/60 font-semibold">
-                      <span>已付訂金: NT$ ${deposit.toLocaleString()}</span>
-                      <span class="text-red-600">待付尾款: NT$ ${remaining.toLocaleString()}</span>
-                    </div>
-                  ` : ''}
-                </div>
-
-                <div class="text-[11px] text-slate-400 space-y-0.5 pt-1">
-                  <div><i class="fa-regular fa-calendar-check mr-1"></i>下單/預購日: ${item.preorderDate || '未填寫'}</div>
-                  <div><i class="fa-solid fa-box mr-1"></i>預計到貨月: ${item.arrivalDate || '未填寫'}</div>
-                  ${item.note ? `<div class="text-slate-600 italic mt-1 line-clamp-1"><i class="fa-regular fa-note-sticky mr-1"></i>${item.note}</div>` : ''}
-                </div>
-              </div>
-            </div>
-
-            <div class="p-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 text-xs">
-              <button onclick="editSelfItem('${item.id}')" class="px-2.5 py-1 text-slate-600 hover:text-indigo-600 font-medium">
-                <i class="fa-regular fa-pen-to-square"></i> 編輯
-              </button>
-              <button onclick="deleteSelfItem('${item.id}')" class="px-2.5 py-1 text-slate-600 hover:text-red-600 font-medium">
-                <i class="fa-regular fa-trash-can"></i> 刪除
-              </button>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    function renderGroupList() {
-      const container = document.getElementById('group-list-container');
-      const search = document.getElementById('group-search').value.toLowerCase();
-
-      const filtered = groupItems.filter(group => {
-        const matchTitle = group.name.toLowerCase().includes(search);
-        const matchRole = group.roles && group.roles.some(r => r.name.toLowerCase().includes(search) || r.buyer.toLowerCase().includes(search));
-        return matchTitle || matchRole;
-      });
-
-      document.getElementById('badge-group-count').innerText = groupItems.length;
-
-      if (filtered.length === 0) {
-        container.innerHTML = `
-          <div class="py-16 text-center text-slate-400 bg-white rounded-3xl border border-dashed border-slate-300">
-            <i class="fa-solid fa-users text-3xl mb-2 text-slate-300"></i>
-            <p>目前沒有揪團或代購項目，快來建立第一個拆團吧！</p>
-          </div>
-        `;
-        return;
-      }
-
-      container.innerHTML = filtered.map(group => {
-        const roles = group.roles || [];
-        const isExpanded = expandedGroupCards[group.id] !== false;
-
-        const splitTotalIncome = roles.reduce((sum, r) => sum + (Number(r.price) || 0), 0);
-        const paidIncome = roles.filter(r => r.paid).reduce((sum, r) => sum + (Number(r.price) || 0), 0);
-        const pendingIncome = splitTotalIncome - paidIncome;
-        const balanceDiff = splitTotalIncome - group.costTwd;
-
-        const secondTotalWait = roles.filter(r => r.secondStatus === '已通知待付').reduce((sum, r) => sum + (Number(r.secondFee) || 0), 0);
-        const secondPendingCount = roles.filter(r => r.secondStatus === '已通知待付').length;
-
-        return `
-          <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-            <div class="p-5 flex flex-col lg:flex-row gap-5 items-start lg:items-center justify-between border-b border-slate-100">
-              <div class="flex items-center gap-4">
-                <img src="${group.image || 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=400'}" class="w-16 h-16 rounded-2xl object-cover bg-slate-100 flex-shrink-0">
-                <div>
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-pink-100 text-pink-700">${group.category}</span>
-                    <span class="text-xs text-slate-400"><i class="fa-regular fa-clock mr-1"></i>下單: ${group.orderDate || '未定'}</span>
-                  </div>
-                  <h3 class="text-base font-bold text-slate-800 mt-1">${group.name}</h3>
-                  <p class="text-xs text-slate-500 mt-0.5">${group.note || '無開團備註'}</p>
-                </div>
-              </div>
-
-              <div class="flex flex-wrap items-center gap-3 text-xs w-full lg:w-auto">
-                <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
-                  <span class="text-slate-400 block text-[11px]">總原幣 (日幣)</span>
-                  <span class="font-bold text-slate-700">${group.jpy ? '¥ ' + Number(group.jpy).toLocaleString() : '未填'}</span>
-                </div>
-                <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
-                  <span class="text-slate-400 block text-[11px]">本團總成本 (NT$)</span>
-                  <span class="font-bold text-slate-800">NT$ ${Number(group.costTwd).toLocaleString()}</span>
-                </div>
-                <div class="p-2.5 bg-emerald-50 rounded-xl border border-emerald-100">
-                  <span class="text-emerald-600 block text-[11px]">拆團應收 (一補)</span>
-                  <span class="font-bold text-emerald-700">NT$ ${splitTotalIncome.toLocaleString()}</span>
-                </div>
-                <div class="p-2.5 ${balanceDiff >= 0 ? 'bg-indigo-50 border-indigo-100 text-indigo-700' : 'bg-red-50 border-red-100 text-red-700'} rounded-xl border">
-                  <span class="block text-[11px] opacity-75">拆團差額 (售價-成本)</span>
-                  <span class="font-bold">${balanceDiff >= 0 ? '+' : ''}NT$ ${balanceDiff.toLocaleString()}</span>
-                </div>
-                <div class="flex items-center gap-1.5 ml-auto">
-                  <button onclick="openRoleModal('${group.id}')" class="px-3 py-1.5 bg-pink-50 hover:bg-pink-100 text-pink-600 rounded-xl font-bold flex items-center gap-1">
-                    <i class="fa-solid fa-user-plus"></i> 新增角色
-                  </button>
-                  <button onclick="editGroupItem('${group.id}')" class="p-2 text-slate-400 hover:text-indigo-600">
-                    <i class="fa-regular fa-pen-to-square"></i>
-                  </button>
-                  <button onclick="deleteGroupItem('${group.id}')" class="p-2 text-slate-400 hover:text-red-600">
-                    <i class="fa-regular fa-trash-can"></i>
-                  </button>
-                  <button onclick="toggleGroupExpand('${group.id}')" class="p-2 text-slate-500 hover:text-slate-800">
-                    <i class="fa-solid ${isExpanded ? 'fa-chevron-up' : 'fa-chevron-down'}"></i>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            ${isExpanded ? `
-              <div class="p-5 bg-slate-50/50 space-y-3">
-                <div class="flex items-center justify-between text-xs font-semibold text-slate-500 px-2">
-                  <span>認領陣容明細 (共 ${roles.length} 個角色款式)</span>
-                  <div class="flex gap-4">
-                    <span class="text-emerald-700"><i class="fa-solid fa-circle-check"></i> 一補已收: NT$ ${paidIncome.toLocaleString()}</span>
-                    <span class="text-amber-700"><i class="fa-solid fa-clock"></i> 一補未付: NT$ ${pendingIncome.toLocaleString()}</span>
-                    <span class="text-blue-700"><i class="fa-solid fa-truck-ramp-box"></i> 二補待收: NT$ ${secondTotalWait.toLocaleString()} (${secondPendingCount}人)</span>
-                  </div>
-                </div>
-
-                ${roles.length === 0 ? `
-                  <div class="p-6 text-center text-xs text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
-                    尚未登記任何角色與買家，點擊右上角「新增角色」開始拆團！
-                  </div>
-                ` : `
-                  <div class="overflow-x-auto bg-white rounded-2xl border border-slate-200 shadow-sm">
-                    <table class="w-full text-left text-xs">
-                      <thead class="bg-slate-100/75 text-slate-500 uppercase font-semibold border-b border-slate-200">
-                        <tr>
-                          <th class="py-3 px-4">角色 / 款式</th>
-                          <th class="py-3 px-4">買家暱稱 / 帳號</th>
-                          <th class="py-3 px-4">拆團本體價 (NT$)</th>
-                          <th class="py-3 px-4">一補收款狀態</th>
-                          <th class="py-3 px-4">二補金額 & 狀態</th>
-                          <th class="py-3 px-4">買家備註 / 交貨</th>
-                          <th class="py-3 px-4 text-right">操作</th>
-                        </tr>
-                      </thead>
-                      <tbody class="divide-y divide-slate-100">
-                        ${roles.map(r => `
-                          <tr class="hover:bg-slate-50/80 transition">
-                            <td class="py-3 px-4 font-bold text-slate-800">${r.name}</td>
-                            <td class="py-3 px-4 text-slate-600 font-medium">${r.buyer}</td>
-                            <td class="py-3 px-4 font-bold text-indigo-600">NT$ ${Number(r.price).toLocaleString()}</td>
-                            <td class="py-3 px-4">
-                              <button onclick="toggleRolePaid('${group.id}', '${r.id}')" class="px-2.5 py-1 rounded-full text-[11px] font-bold ${r.paid ? 'badge-paid' : 'badge-unpaid'} transition flex items-center gap-1">
-                                ${r.paid ? '<i class="fa-solid fa-check"></i> 已匯款' : '<i class="fa-solid fa-xmark"></i> 未付款'}
-                              </button>
-                            </td>
-                            <td class="py-3 px-4">
-                              <div class="flex items-center gap-2">
-                                <span class="font-bold ${r.secondFee > 0 ? 'text-slate-800' : 'text-slate-400'}">NT$ ${r.secondFee || 0}</span>
-                                <button onclick="cycleSecondStatus('${group.id}', '${r.id}')" title="點擊切換二補狀態" class="px-2 py-0.5 rounded-md text-[10px] font-bold ${r.secondStatus === '已結清' ? 'badge-second-done' : (r.secondStatus === '已通知待付' ? 'badge-second-wait' : 'bg-slate-100 text-slate-500')}">
-                                  ${r.secondStatus || '未通知'}
-                                </button>
-                              </div>
-                            </td>
-                            <td class="py-3 px-4 text-slate-500 text-[11px]">${r.note || '-'}</td>
-                            <td class="py-3 px-4 text-right space-x-1">
-                              <button onclick="editRoleItem('${group.id}', '${r.id}')" class="p-1.5 text-slate-400 hover:text-indigo-600"><i class="fa-regular fa-pen-to-square"></i></button>
-                              <button onclick="deleteRoleItem('${group.id}', '${r.id}')" class="p-1.5 text-slate-400 hover:text-red-600"><i class="fa-regular fa-trash-can"></i></button>
-                            </td>
-                          </tr>
-                        `).join('')}
-                      </tbody>
-                    </table>
-                  </div>
-                `}
-              </div>
-            ` : ''}
-          </div>
-        `;
-      }).join('');
-    }
-
-    function openSelfModal() {
-      document.getElementById('form-self').reset();
-      document.getElementById('self-id').value = '';
-      document.getElementById('modal-self-title').innerText = '新增自購商品';
-      toggleDepositField();
-      calculateSelfTotal();
-      document.getElementById('modal-self').classList.remove('hidden');
-    }
-
-    function closeSelfModal() {
-      document.getElementById('modal-self').classList.add('hidden');
-    }
-
-    function toggleDepositField() {
-      const payment = document.getElementById('self-payment').value;
-      const depositBox = document.getElementById('self-deposit-container');
-      depositBox.classList.toggle('hidden', payment !== '訂金+尾款');
-      calculateDepositNote();
-    }
-
-    function calculateSelfTotal() {
-      const price = Number(document.getElementById('self-price').value) || 0;
-      const qty = Number(document.getElementById('self-qty').value) || 1;
-      const total = price * qty;
-      document.getElementById('self-calc-total').innerText = `總價計算：NT$ ${total.toLocaleString()}`;
-      calculateDepositNote();
-    }
-
-    function calculateDepositNote() {
-      const price = Number(document.getElementById('self-price').value) || 0;
-      const qty = Number(document.getElementById('self-qty').value) || 1;
-      const total = price * qty;
-      const deposit = Number(document.getElementById('self-deposit').value) || 0;
-      const remaining = Math.max(0, total - deposit);
-      document.getElementById('self-remaining-note').innerText = `待付尾款: NT$ ${remaining.toLocaleString()}`;
-    }
-
-    function saveSelfItem(e) {
-      e.preventDefault();
-      const id = document.getElementById('self-id').value || 's_' + Date.now();
-      const newItem = {
-        id,
-        name: document.getElementById('self-name').value,
-        price: Number(document.getElementById('self-price').value) || 0,
-        qty: Number(document.getElementById('self-qty').value) || 1,
-        seller: document.getElementById('self-seller').value,
-        payment: document.getElementById('self-payment').value,
-        deposit: Number(document.getElementById('self-deposit').value) || 0,
-        preorderDate: document.getElementById('self-preorder-date').value,
-        arrivalDate: document.getElementById('self-arrival-date').value,
-        status: document.getElementById('self-status').value,
-        image: document.getElementById('self-image').value,
-        note: document.getElementById('self-note').value
-      };
-
-      const index = selfItems.findIndex(i => i.id === id);
-      if (index >= 0) {
-        selfItems[index] = newItem;
-      } else {
-        selfItems.unshift(newItem);
-      }
-
-      saveToStorage();
-      renderSelfList();
-      closeSelfModal();
-    }
-
-    function editSelfItem(id) {
-      const item = selfItems.find(i => i.id === id);
-      if (!item) return;
-
-      document.getElementById('self-id').value = item.id;
-      document.getElementById('self-name').value = item.name;
-      document.getElementById('self-price').value = item.price;
-      document.getElementById('self-qty').value = item.qty;
-      document.getElementById('self-seller').value = item.seller || '';
-      document.getElementById('self-payment').value = item.payment;
-      document.getElementById('self-deposit').value = item.deposit || 0;
-      document.getElementById('self-preorder-date').value = item.preorderDate || '';
-      document.getElementById('self-arrival-date').value = item.arrivalDate || '';
-      document.getElementById('self-status').value = item.status;
-      document.getElementById('self-image').value = item.image || '';
-      document.getElementById('self-note').value = item.note || '';
-
-      document.getElementById('modal-self-title').innerText = '編輯自購商品';
-      toggleDepositField();
-      calculateSelfTotal();
-      document.getElementById('modal-self').classList.remove('hidden');
-    }
-
-    function deleteSelfItem(id) {
-      if (confirm('確定要刪除這筆自購商品紀錄嗎？')) {
-        selfItems = selfItems.filter(i => i.id !== id);
-        saveToStorage();
-        renderSelfList();
-      }
-    }
-
-    function openGroupModal() {
-      document.getElementById('form-group').reset();
-      document.getElementById('group-id').value = '';
-      document.getElementById('modal-group-title').innerText = '建立新揪團 / 代購商品';
-      document.getElementById('modal-group').classList.remove('hidden');
-    }
-
-    function closeGroupModal() {
-      document.getElementById('modal-group').classList.add('hidden');
-    }
-
-    function saveGroupItem(e) {
-      e.preventDefault();
-      const id = document.getElementById('group-id').value || 'g_' + Date.now();
-      const existing = groupItems.find(g => g.id === id);
-
-      const newItem = {
-        id,
-        name: document.getElementById('group-name').value,
-        jpy: Number(document.getElementById('group-jpy').value) || 0,
-        costTwd: Number(document.getElementById('group-cost-twd').value) || 0,
-        resaleTwd: Number(document.getElementById('group-resale-twd').value) || 0,
-        category: document.getElementById('group-category').value,
-        orderDate: document.getElementById('group-order-date').value,
-        image: document.getElementById('group-image').value,
-        note: document.getElementById('group-note').value,
-        roles: existing ? existing.roles : []
-      };
-
-      const index = groupItems.findIndex(g => g.id === id);
-      if (index >= 0) {
-        groupItems[index] = newItem;
-      } else {
-        groupItems.unshift(newItem);
-        expandedGroupCards[id] = true;
-      }
-
-      saveToStorage();
-      renderGroupList();
-      closeGroupModal();
-    }
-
-    function editGroupItem(id) {
-      const g = groupItems.find(item => item.id === id);
-      if (!g) return;
-
-      document.getElementById('group-id').value = g.id;
-      document.getElementById('group-name').value = g.name;
-      document.getElementById('group-jpy').value = g.jpy || '';
-      document.getElementById('group-cost-twd').value = g.costTwd;
-      document.getElementById('group-resale-twd').value = g.resaleTwd || '';
-      document.getElementById('group-category').value = g.category;
-      document.getElementById('group-order-date').value = g.orderDate || '';
-      document.getElementById('group-image').value = g.image || '';
-      document.getElementById('group-note').value = g.note || '';
-
-      document.getElementById('modal-group-title').innerText = '編輯揪團商品資訊';
-      document.getElementById('modal-group').classList.remove('hidden');
-    }
-
-    function deleteGroupItem(id) {
-      if (confirm('確定刪除整團嗎？所有認領角色的收款記錄都將被移除！')) {
-        groupItems = groupItems.filter(g => g.id !== id);
-        saveToStorage();
-        renderGroupList();
-      }
-    }
-
-    function toggleGroupExpand(groupId) {
-      expandedGroupCards[groupId] = !expandedGroupCards[groupId];
-      renderGroupList();
-    }
-
-    function openRoleModal(groupId) {
-      document.getElementById('form-role').reset();
-      document.getElementById('role-group-id').value = groupId;
-      document.getElementById('role-id').value = '';
-      document.getElementById('modal-role-title').innerText = '新增認領角色';
-      document.getElementById('modal-role').classList.remove('hidden');
-    }
-
-    function closeRoleModal() {
-      document.getElementById('modal-role').classList.add('hidden');
-    }
-
-    function saveRoleItem(e) {
-      e.preventDefault();
-      const groupId = document.getElementById('role-group-id').value;
-      const roleId = document.getElementById('role-id').value || 'r_' + Date.now();
-      const group = groupItems.find(g => g.id === groupId);
-      if (!group) return;
-
-      const newRole = {
-        id: roleId,
-        name: document.getElementById('role-name').value,
-        buyer: document.getElementById('role-buyer').value,
-        price: Number(document.getElementById('role-price').value) || 0,
-        paid: document.getElementById('role-paid').value === 'true',
-        secondStatus: document.getElementById('role-second-status').value,
-        secondFee: Number(document.getElementById('role-second-fee').value) || 0,
-        note: document.getElementById('role-note').value
-      };
-
-      if (!group.roles) group.roles = [];
-      const rIndex = group.roles.findIndex(r => r.id === roleId);
-      if (rIndex >= 0) {
-        group.roles[rIndex] = newRole;
-      } else {
-        group.roles.push(newRole);
-      }
-
-      expandedGroupCards[groupId] = true;
-      saveToStorage();
-      renderGroupList();
-      closeRoleModal();
-    }
-
-    function editRoleItem(groupId, roleId) {
-      const group = groupItems.find(g => g.id === groupId);
-      if (!group) return;
-      const role = group.roles.find(r => r.id === roleId);
-      if (!role) return;
-
-      document.getElementById('role-group-id').value = groupId;
-      document.getElementById('role-id').value = role.id;
-      document.getElementById('role-name').value = role.name;
-      document.getElementById('role-buyer').value = role.buyer;
-      document.getElementById('role-price').value = role.price;
-      document.getElementById('role-paid').value = role.paid ? 'true' : 'false';
-      document.getElementById('role-second-status').value = role.secondStatus || '未通知';
-      document.getElementById('role-second-fee').value = role.secondFee || 0;
-      document.getElementById('role-note').value = role.note || '';
-
-      document.getElementById('modal-role-title').innerText = '編輯角色與買家狀態';
-      document.getElementById('modal-role').classList.remove('hidden');
-    }
-
-    function deleteRoleItem(groupId, roleId) {
-      const group = groupItems.find(g => g.id === groupId);
-      if (!group) return;
-      if (confirm('確定移除此認領角色嗎？')) {
-        group.roles = group.roles.filter(r => r.id !== roleId);
-        saveToStorage();
-        renderGroupList();
-      }
-    }
-
-    function toggleRolePaid(groupId, roleId) {
-      const group = groupItems.find(g => g.id === groupId);
-      if (!group) return;
-      const role = group.roles.find(r => r.id === roleId);
-      if (role) {
-        role.paid = !role.paid;
-        saveToStorage();
-        renderGroupList();
-      }
-    }
-
-    function cycleSecondStatus(groupId, roleId) {
-      const group = groupItems.find(g => g.id === groupId);
-      if (!group) return;
-      const role = group.roles.find(r => r.id === roleId);
-      if (role) {
-        const statuses = ['未通知', '已通知待付', '已結清'];
-        const currentIdx = statuses.indexOf(role.secondStatus || '未通知');
-        role.secondStatus = statuses[(currentIdx + 1) % statuses.length];
-        saveToStorage();
-        renderGroupList();
-      }
-    }
-
-    function updateSummaryKPIs() {
-      const selfTotal = selfItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
-      const selfDeposit = selfItems.filter(i => i.payment === '訂金+尾款').reduce((sum, item) => sum + (item.deposit || 0), 0);
-      document.getElementById('stat-self-total').innerText = 'NT$ ' + selfTotal.toLocaleString();
-      document.getElementById('stat-self-deposit').innerText = `含已付訂金: NT$ ${selfDeposit.toLocaleString()}`;
-
-      const groupCost = groupItems.reduce((sum, g) => sum + (Number(g.costTwd) || 0), 0);
-      const groupJpy = groupItems.reduce((sum, g) => sum + (Number(g.jpy) || 0), 0);
-      document.getElementById('stat-group-cost').innerText = 'NT$ ' + groupCost.toLocaleString();
-      document.getElementById('stat-group-jpy').innerText = `折合原幣: ¥ ${groupJpy.toLocaleString()}`;
-
-      let totalSplitIncome = 0;
-      let totalPaidIncome = 0;
-      let secondPendingCount = 0;
-      let secondPendingAmount = 0;
-
-      groupItems.forEach(g => {
-        (g.roles || []).forEach(r => {
-          const p = Number(r.price) || 0;
-          totalSplitIncome += p;
-          if (r.paid) {
-            totalPaidIncome += p;
-          }
-          if (r.secondStatus === '已通知待付') {
-            secondPendingCount++;
-            secondPendingAmount += (Number(r.secondFee) || 0);
-          }
-        });
-      });
-
-      const pendingOne = totalSplitIncome - totalPaidIncome;
-      document.getElementById('stat-group-income').innerText = `NT$ ${totalPaidIncome.toLocaleString()} / ${totalSplitIncome.toLocaleString()}`;
-      document.getElementById('stat-group-pending').innerText = `待收一補: NT$ ${pendingOne.toLocaleString()}`;
-
-      document.getElementById('stat-second-pending').innerText = `${secondPendingCount} 人待付`;
-      document.getElementById('stat-second-amount').innerText = `二補待收總計: NT$ ${secondPendingAmount.toLocaleString()}`;
-    }
-
-    let channelChartInstance = null;
-    let balanceChartInstance = null;
-
-    function renderCharts() {
-      const channelMap = {};
-      selfItems.forEach(item => {
-        const key = item.seller || '其他通販';
-        channelMap[key] = (channelMap[key] || 0) + (item.price * item.qty);
-      });
-
-      const channelLabels = Object.keys(channelMap);
-      const channelData = Object.values(channelMap);
-
-      if (channelChartInstance) channelChartInstance.destroy();
-      const ctx1 = document.getElementById('chart-channel').getContext('2d');
-      channelChartInstance = new Chart(ctx1, {
-        type: 'doughnut',
-        data: {
-          labels: channelLabels.length ? channelLabels : ['尚無資料'],
-          datasets: [{
-            data: channelData.length ? channelData : [1],
-            backgroundColor: ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#8b5cf6', '#cbd5e1']
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { position: 'bottom' } }
-        }
-      });
-
-      let totalCost = groupItems.reduce((sum, g) => sum + (Number(g.costTwd) || 0), 0);
-      let totalExpected = 0;
-      let totalReceived = 0;
-      groupItems.forEach(g => {
-        (g.roles || []).forEach(r => {
-          totalExpected += (Number(r.price) || 0);
-          if (r.paid) totalReceived += (Number(r.price) || 0);
-        });
-      });
-
-      if (balanceChartInstance) balanceChartInstance.destroy();
-      const ctx2 = document.getElementById('chart-group-balance').getContext('2d');
-      balanceChartInstance = new Chart(ctx2, {
-        type: 'bar',
-        data: {
-          labels: ['總成本', '拆團應收', '一補已實收'],
-          datasets: [{
-            label: '金額 (NT$)',
-            data: [totalCost, totalExpected, totalReceived],
-            backgroundColor: ['#f43f5e', '#6366f1', '#10b981'],
-            borderRadius: 8
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: { y: { beginAtZero: true } }
-        }
-      });
-    }
-
-    function exportData() {
-      const data = {
-        exportDate: new Date().toISOString(),
-        selfItems,
-        groupItems
-      };
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `merch_tracker_backup_${new Date().toISOString().slice(0,10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function importData(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const json = JSON.parse(e.target.result);
-          if (json.selfItems && json.groupItems) {
-            selfItems = json.selfItems;
-            groupItems = json.groupItems;
-            saveToStorage();
-            renderSelfList();
-            renderGroupList();
-            alert('備份資料已成功匯入還原！');
-          } else {
-            alert('檔案格式不相符！');
-          }
-        } catch (err) {
-          alert('解析 JSON 檔案失敗！');
-        }
-      };
-      reader.readAsText(file);
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      saveToStorage();
-      renderSelfList();
-      renderGroupList();
-    });
-  </script>
+  <!-- 模組化入口腳本 -->
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>
