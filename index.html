@@ -142,7 +142,52 @@
       <!-- 出物商品卡片清單 -->
       <div id="sale-items-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
     </section>
+    <!-- 個人出物頁籤 -->
+    <section id="tab-sale" class="tab-pane hidden space-y-6">
+      <!-- 頂部操作與篩選列 -->
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          <input type="text" id="sale-search" placeholder="搜尋出物名稱、買家、通路..." class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <select id="sale-pay-filter" class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white">
+            <option value="">全部付款狀態</option>
+            <option value="unpaid">未付款 / 待收尾款</option>
+            <option value="paid">已全額匯款</option>
+          </select>
+          <select id="sale-shipping-filter" class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white">
+            <option value="">全部寄送狀態</option>
+            <option value="未寄出">未寄出</option>
+            <option value="寄出">已寄出</option>
+          </select>
+        </div>
+        <button id="btn-open-sale-modal" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium shadow-sm transition flex items-center space-x-1.5 shrink-0">
+          <span>+</span>
+          <span>新增出物</span>
+        </button>
+      </div>
 
+      <!-- 出物統計 KPI -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-[11px] text-slate-500 font-semibold uppercase">出物總件數</div>
+          <div id="sale-kpi-count" class="text-xl font-bold text-slate-900 mt-1">0 件</div>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-[11px] text-slate-500 font-semibold uppercase">已收款收入</div>
+          <div id="sale-kpi-income" class="text-xl font-bold text-emerald-600 mt-1">NT$ 0</div>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-[11px] text-slate-500 font-semibold uppercase">待收未付款</div>
+          <div id="sale-kpi-unpaid" class="text-xl font-bold text-rose-500 mt-1">NT$ 0</div>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-[11px] text-slate-500 font-semibold uppercase">待寄出件數</div>
+          <div id="sale-kpi-unshipped" class="text-xl font-bold text-indigo-600 mt-1">0 件</div>
+        </div>
+      </div>
+
+      <!-- 出物商品卡片清單 -->
+      <div id="sale-items-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </section>
     <section id="tab-buyer" class="tab-pane hidden space-y-6">
       <!-- 頂部搜尋與篩選列 -->
       <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
@@ -654,6 +699,109 @@
       </form>
     </div>
   </div>
-
+<!-- Modal: 新增/編輯個人出物 -->
+  <div id="modal-sale" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+      <h2 id="modal-sale-title" class="text-base font-bold text-slate-900">新增個人出物</h2>
+      <form id="form-sale" class="space-y-3">
+        <input type="hidden" name="id" id="sale-edit-id" value="">
+        <div>
+          <label class="block text-xs font-medium text-slate-700">商品名稱 / 角色款式 *</label>
+          <input type="text" name="name" required placeholder="例：咒術 伏黑惠 趴娃" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700">商品圖片 (支援網址或由電腦上傳)</label>
+          <div class="mt-1 flex gap-2">
+            <input type="text" name="imageUrl" id="sale-image-url" placeholder="https://... 或點右側按鈕上傳" class="flex-1 px-3 py-1.5 border rounded text-sm">
+            <label for="sale-image-file" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-medium cursor-pointer border border-slate-300 flex items-center shrink-0 transition">
+              📁 上傳圖片
+            </label>
+            <input type="file" id="sale-image-file" accept="image/*" class="sr-only">
+          </div>
+          <div id="sale-image-status" class="mt-1.5 text-xs text-indigo-600 font-medium hidden"></div>
+          <div id="sale-image-preview-container" class="mt-2 hidden items-center gap-3 p-2 bg-slate-50 border border-slate-200 rounded-lg">
+            <img id="sale-image-preview" src="" class="w-12 h-12 object-cover rounded border border-slate-200" alt="預覽圖">
+            <div class="text-xs">
+              <span id="sale-image-filename" class="text-slate-700 block font-medium">已選擇圖片</span>
+              <button type="button" id="btn-remove-sale-image" class="text-rose-500 hover:underline mt-0.5 inline-block text-[11px]">移除此圖片</button>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-700">出物通路 / 平台 *</label>
+            <select name="channel" class="w-full px-3 py-1.5 border rounded text-sm mt-1 bg-white">
+              <option value="賣貨便">賣貨便</option>
+              <option value="蝦皮購物">蝦皮購物</option>
+              <option value="FB社團">FB社團</option>
+              <option value="噗浪">噗浪</option>
+              <option value="好賣+">好賣+</option>
+              <option value="面交">面交</option>
+              <option value="其他">其他通路</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-700">出物日期</label>
+            <input type="date" name="saleDate" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-700">數量 *</label>
+            <input type="number" name="quantity" id="sale-qty" min="1" value="1" required class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-700">單價 (NT$) *</label>
+            <input type="number" name="price" id="sale-price" min="0" required value="0" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+          </div>
+        </div>
+        <div class="p-2 bg-slate-50 border rounded text-xs flex justify-between items-center">
+          <span class="text-slate-500">出物總金額 (單價 × 數量)：</span>
+          <span id="sale-total-display" class="font-bold text-slate-900">NT$ 0</span>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700">買家帳號 / 暱稱 (支援歷史名單)</label>
+          <input type="text" name="buyer" list="sale-buyer-datalist" placeholder="輸入或選擇歷史買家" class="w-full px-3 py-1.5 border rounded text-sm mt-1 bg-white" autocomplete="off">
+          <datalist id="sale-buyer-datalist"></datalist>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-700">付款狀態 *</label>
+            <select name="payStatus" id="sale-paymethod-select" class="w-full px-3 py-1.5 border rounded text-sm mt-1 bg-white">
+              <option value="未匯款">未匯款</option>
+              <option value="已全額匯款">已全額匯款</option>
+              <option value="訂金">訂金 (需填已收金額)</option>
+              <option value="貨到付款">貨到付款</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-700">寄送狀態 *</label>
+            <select name="shippingStatus" class="w-full px-3 py-1.5 border rounded text-sm mt-1 bg-white">
+              <option value="未寄出">未寄出</option>
+              <option value="寄出">已寄出</option>
+            </select>
+          </div>
+        </div>
+        <div id="sale-deposit-container" class="hidden p-3 bg-amber-50/60 rounded-lg border border-amber-200 space-y-1.5">
+          <div>
+            <label class="block text-xs font-medium text-amber-800">已收訂金 (NT$) *</label>
+            <input type="number" name="deposit" id="sale-deposit" min="0" value="0" class="w-full px-3 py-1.5 border rounded text-sm mt-1 bg-white">
+          </div>
+          <div class="text-xs text-amber-700 flex justify-between pt-1">
+            <span>剩餘待補尾款：</span>
+            <span id="sale-remaining-display" class="font-bold text-rose-600">NT$ 0</span>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700">出物備註說明</label>
+          <input type="text" name="notes" placeholder="賣場編號、包材費、綁物說明等" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+        </div>
+        <div class="flex justify-end space-x-2 pt-3 border-t">
+          <button type="button" id="btn-cancel-sale" class="px-3.5 py-1.5 border rounded-lg text-xs">取消</button>
+          <button type="submit" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium">儲存出物</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </body>
 </html>
