@@ -1,287 +1,227 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>周邊記帳與揪團拆團小幫手</title>
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Chart.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="css/style.css">
-</head>
-<body class="bg-slate-50 text-slate-800 min-h-screen">
+import { getStorageData, saveStorageData } from './storage.js';
 
-  <!-- 頂部導覽列 -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
-      <div class="flex items-center space-x-3">
-        <span class="text-2xl">📦</span>
-        <h1 class="text-lg font-bold text-slate-900 tracking-tight">周邊記帳與揪團拆團小幫手</h1>
-      </div>
-      <div class="flex items-center space-x-2">
-        <button id="btn-export-json" class="px-3 py-1.5 text-xs font-medium border border-slate-300 rounded hover:bg-slate-100 transition">匯出 JSON</button>
-        <label class="px-3 py-1.5 text-xs font-medium border border-slate-300 rounded hover:bg-slate-100 cursor-pointer transition">
-          匯入 JSON
-          <input type="file" id="file-import-json" accept=".json" class="hidden">
-        </label>
-      </div>
-    </div>
+// 初始化個人自購模組
+export function initPersonalModule() {
+  const container = document.getElementById('personal-items-container');
+  const searchInput = document.getElementById('personal-search');
+  const filterStatus = document.getElementById('personal-filter-status');
+  const filterPay = document.getElementById('personal-filter-pay');
+  const btnOpenModal = document.getElementById('btn-open-personal-modal');
+  const btnCancelModal = document.getElementById('btn-cancel-personal');
+  const modal = document.getElementById('modal-personal');
+  const form = document.getElementById('form-personal');
+  const payMethodSelect = document.getElementById('personal-paymethod-select');
+  const depositContainer = document.getElementById('field-deposit-container');
+  const modalTitle = document.getElementById('modal-personal-title');
+  const btnSubmit = document.getElementById('btn-submit-personal');
 
-    <!-- 頁籤切換按鈕列 -->
-    <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-8 border-t border-slate-100">
-      <button class="nav-tab active-tab" data-target="tab-personal">個人自購清單</button>
-      <button class="nav-tab inactive-tab" data-target="tab-group">揪團拆團與代購</button>
-      <button class="nav-tab inactive-tab" data-target="tab-dashboard">財務統計看板</button>
-    </nav>
-  </header>
+  // 控制訂金欄位顯示
+  payMethodSelect.addEventListener('change', () => {
+    if (payMethodSelect.value === '訂金+尾款') {
+      depositContainer.classList.remove('hidden');
+    } else {
+      depositContainer.classList.add('hidden');
+    }
+  });
 
-  <!-- 主內容容器 -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  // 打開新增彈窗
+  btnOpenModal.addEventListener('click', () => {
+    form.reset();
+    document.getElementById('personal-item-id').value = '';
+    modalTitle.textContent = '新增個人自購商品';
+    btnSubmit.textContent = '儲存';
+    depositContainer.classList.add('hidden');
+    modal.classList.remove('hidden');
+  });
 
-    <!-- 頁籤一：個人自購模組 -->
-    <section id="tab-personal" class="tab-pane">
-      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
-        <div class="flex flex-wrap gap-2 w-full sm:w-auto">
-          <input type="text" id="personal-search" placeholder="搜尋商品名稱 / 購買管道..." class="px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-64">
-          <select id="personal-filter-status" class="px-3 py-1.5 text-sm border rounded-lg bg-white">
-            <option value="">全部物流狀態</option>
-            <option value="已喊單">已喊單</option>
-            <option value="賣貨便已下單">賣貨便已下單</option>
-            <option value="已完成">已完成</option>
-          </select>
-          <select id="personal-filter-pay" class="px-3 py-1.5 text-sm border rounded-lg bg-white">
-            <option value="">全部付款方式</option>
-            <option value="取貨付款">取貨付款</option>
-            <option value="全額匯款">全額匯款</option>
-            <option value="訂金+尾款">訂金+尾款</option>
-            <option value="信用卡">信用卡</option>
-          </select>
-        </div>
-        <button id="btn-open-personal-modal" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition shrink-0">+ 新增自購商品</button>
-      </div>
+  // 關閉彈窗
+  btnCancelModal.addEventListener('click', () => {
+    modal.classList.add('hidden');
+  });
 
-      <div id="personal-items-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        <!-- 動態渲染自購卡片 -->
-      </div>
-    </section>
+  // 搜尋與篩選監聽
+  searchInput.addEventListener('input', renderCards);
+  filterStatus.addEventListener('change', renderCards);
+  filterPay.addEventListener('change', renderCards);
 
-    <!-- 頁籤二：揪團拆團模組 -->
-    <section id="tab-group" class="tab-pane hidden">
-      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
-        <div class="flex items-center gap-2 w-full sm:w-auto">
-          <input type="text" id="group-search" placeholder="搜尋主商品 / 角色 / 買家帳號..." class="px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-80">
-        </div>
-        <button id="btn-open-group-modal" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition shrink-0">+ 發起新揪團</button>
-      </div>
+  // 表單提交（新增或編輯）
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const formData = new FormData(form);
+    const data = getStorageData();
+    const itemId = formData.get('id');
 
-      <div id="group-items-container" class="space-y-6">
-        <!-- 動態渲染主團與角色列表 -->
-      </div>
-    </section>
+    const itemData = {
+      name: formData.get('name'),
+      imageUrl: formData.get('imageUrl') || '',
+      quantity: Number(formData.get('quantity')) || 1,
+      price: Number(formData.get('price')) || 0,
+      channel: formData.get('channel') || '',
+      payMethod: formData.get('payMethod'),
+      deposit: formData.get('payMethod') === '訂金+尾款' ? (Number(formData.get('deposit')) || 0) : 0,
+      orderDate: formData.get('orderDate') || '',
+      arrivalMonth: formData.get('arrivalMonth') || '',
+      status: formData.get('status') || '已喊單',
+      notes: formData.get('notes') || ''
+    };
 
-    <!-- 頁籤三：財務統計看板 -->
-    <section id="tab-dashboard" class="tab-pane hidden space-y-8">
-      <!-- 4 大 KPI 卡片 -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">自購總花費</div>
-          <div id="kpi-personal-cost" class="text-2xl font-bold text-slate-900 mt-2">NT$ 0</div>
-          <div id="kpi-personal-deposit" class="text-xs text-amber-600 mt-1">已付訂金：NT$ 0</div>
-        </div>
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">揪團總成本</div>
-          <div id="kpi-group-cost" class="text-2xl font-bold text-slate-900 mt-2">NT$ 0</div>
-          <div id="kpi-group-cost-jpy" class="text-xs text-slate-500 mt-1">折合日幣：¥ 0</div>
-        </div>
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">一補收款進度</div>
-          <div id="kpi-first-pay-progress" class="text-2xl font-bold text-emerald-600 mt-2">NT$ 0 / 0</div>
-          <div id="kpi-first-pay-unpaid" class="text-xs text-rose-500 mt-1">待收一補：NT$ 0</div>
-        </div>
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">二補追蹤</div>
-          <div id="kpi-second-pay-amount" class="text-2xl font-bold text-blue-600 mt-2">NT$ 0</div>
-          <div id="kpi-second-pay-count" class="text-xs text-slate-500 mt-1">待補款人數：0 人</div>
-        </div>
-      </div>
+    if (itemId) {
+      // 編輯更新
+      const index = data.personalItems.findIndex(i => i.id === itemId);
+      if (index !== -1) {
+        data.personalItems[index] = { ...data.personalItems[index], ...itemData };
+      }
+    } else {
+      // 全新新增
+      itemData.id = 'p_' + Date.now();
+      itemData.createdAt = new Date().toISOString();
+      if (!data.personalItems) data.personalItems = [];
+      data.personalItems.push(itemData);
+    }
 
-      <!-- 圖表區 -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <h3 class="text-sm font-bold text-slate-700 mb-4">自購通路支出分佈</h3>
-          <div class="relative h-64">
-            <canvas id="chart-personal-channel"></canvas>
+    saveStorageData(data);
+    modal.classList.add('hidden');
+    renderCards();
+    window.dispatchEvent(new CustomEvent('data-updated'));
+  });
+
+  // 渲染所有卡片
+  function renderCards() {
+    const data = getStorageData();
+    let list = data.personalItems || [];
+
+    const keyword = searchInput.value.trim().toLowerCase();
+    const statusVal = filterStatus.value;
+    const payVal = filterPay.value;
+
+    list = list.filter(item => {
+      const matchKeyword = !keyword || 
+        (item.name && item.name.toLowerCase().includes(keyword)) ||
+        (item.channel && item.channel.toLowerCase().includes(keyword));
+      const matchStatus = !statusVal || item.status === statusVal;
+      const matchPay = !payVal || item.payMethod === payVal;
+      return matchKeyword && matchStatus && matchPay;
+    });
+
+    if (list.length === 0) {
+      container.innerHTML = `
+        <div class="col-span-full py-12 text-center text-slate-400">
+          目前無相關自購項目
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = list.map(item => {
+      const totalPrice = item.price * item.quantity;
+      const deposit = item.deposit || 0;
+      const balance = Math.max(0, totalPrice - deposit);
+
+      return `
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between">
+          <div class="p-4 space-y-3">
+            <!-- 標題與標籤 -->
+            <div class="flex justify-between items-start gap-2">
+              <h3 class="font-bold text-slate-900 text-base leading-tight">${item.name}</h3>
+              <div class="flex flex-wrap gap-1 shrink-0 justify-end">
+                <span class="px-2 py-0.5 text-xs bg-slate-100 text-slate-600 rounded-full">${item.channel || '無管道'}</span>
+                <span class="px-2 py-0.5 text-xs bg-indigo-50 text-indigo-600 rounded-full font-medium">${item.payMethod}</span>
+                <span class="px-2 py-0.5 text-xs bg-amber-50 text-amber-700 rounded-full font-medium">${item.status}</span>
+              </div>
+            </div>
+
+            <!-- 金額明細 -->
+            <div class="text-xs text-slate-500 space-y-1.5 pt-1">
+              <div class="flex justify-between">
+                <span>單價 × 數量</span>
+                <span class="font-medium text-slate-700">NT$ ${item.price.toLocaleString()} × ${item.quantity}</span>
+              </div>
+              <div class="flex justify-between font-bold text-slate-900 text-sm">
+                <span>總價</span>
+                <span>NT$ ${totalPrice.toLocaleString()}</span>
+              </div>
+              ${item.payMethod === '訂金+尾款' ? `
+                <div class="flex justify-between text-amber-600">
+                  <span>已付訂金</span>
+                  <span>NT$ ${deposit.toLocaleString()}</span>
+                </div>
+                <div class="flex justify-between text-rose-500 font-semibold">
+                  <span>剩餘尾款</span>
+                  <span>NT$ ${balance.toLocaleString()}</span>
+                </div>
+              ` : ''}
+              <div class="flex justify-between text-slate-400 pt-1 border-t border-dashed">
+                <span>下單 / 抵台</span>
+                <span>${item.orderDate || '--'} / ${item.arrivalMonth || '--'}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 卡片底部動作列：進度往左移，右邊新增編輯按鈕 -->
+          <div class="px-4 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
+            <!-- 左側：標籤與下拉選單 -->
+            <div class="flex items-center space-x-2">
+              <span class="text-xs text-slate-500 shrink-0">更新物流進度</span>
+              <select onchange="window.updatePersonalStatus('${item.id}', this.value)" class="text-xs border border-slate-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                <option value="已喊單" ${item.status === '已喊單' ? 'selected' : ''}>已喊單</option>
+                <option value="賣貨便已下單" ${item.status === '賣貨便已下單' ? 'selected' : ''}>賣貨便已下單</option>
+                <option value="已完成" ${item.status === '已完成' ? 'selected' : ''}>已完成</option>
+              </select>
+            </div>
+
+            <!-- 右側：編輯按鈕 -->
+            <button type="button" onclick="window.editPersonalItem('${item.id}')" class="px-3 py-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 rounded border border-indigo-200 transition shrink-0">
+              編輯
+            </button>
           </div>
         </div>
-        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <h3 class="text-sm font-bold text-slate-700 mb-4">揪團成本 vs 實收總覽</h3>
-          <div class="relative h-64">
-            <canvas id="chart-group-finance"></canvas>
-          </div>
-        </div>
-      </div>
-    </section>
-  </main>
+      `;
+    }).join('');
+  }
 
-  <!-- Modal: 新增自購商品 -->
-  <div id="modal-personal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-      <h2 class="text-lg font-bold text-slate-900">新增個人自購商品</h2>
-      <form id="form-personal" class="space-y-3">
-        <div>
-          <label class="block text-xs font-medium text-slate-700">商品名稱 *</label>
-          <input type="text" name="name" required class="w-full px-3 py-1.5 border rounded text-sm mt-1">
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700">商品圖片 URL</label>
-          <input type="url" name="imageUrl" placeholder="https://..." class="w-full px-3 py-1.5 border rounded text-sm mt-1">
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-medium text-slate-700">購買數量 *</label>
-            <input type="number" name="quantity" min="1" value="1" required class="w-full px-3 py-1.5 border rounded text-sm mt-1">
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-700">單價 (NT$) *</label>
-            <input type="number" name="price" min="0" required class="w-full px-3 py-1.5 border rounded text-sm mt-1">
-          </div>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700">賣家 / 購買管道</label>
-          <input type="text" name="channel" placeholder="例：煤爐代購、安利美特" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-medium text-slate-700">付款方式</label>
-            <select name="payMethod" id="personal-paymethod-select" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
-              <option value="取貨付款">取貨付款</option>
-              <option value="全額匯款">全額匯款</option>
-              <option value="訂金+尾款">訂金+尾款</option>
-              <option value="信用卡">信用卡</option>
-            </select>
-          </div>
-          <div id="field-deposit-container" class="hidden">
-            <label class="block text-xs font-medium text-slate-700">已付訂金 (NT$) *</label>
-            <input type="number" name="deposit" min="0" value="0" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-medium text-slate-700">下單日期</label>
-            <input type="date" name="orderDate" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-700">預計抵台月份</label>
-            <input type="month" name="arrivalMonth" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
-          </div>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700">物流進度</label>
-          <select name="status" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
-            <option value="已喊單">已喊單</option>
-            <option value="賣貨便已下單">賣貨便已下單</option>
-            <option value="已完成">已完成</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700">備註說明</label>
-          <textarea name="notes" rows="2" placeholder="寄件單號、賣貨便單號等" class="w-full px-3 py-1.5 border rounded text-sm mt-1"></textarea>
-        </div>
-        <div class="flex justify-end space-x-2 pt-3 border-t">
-          <button type="button" id="btn-cancel-personal" class="px-4 py-2 border rounded-lg text-sm">取消</button>
-          <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium">儲存</button>
-        </div>
-      </form>
-    </div>
-  </div>
+  // 掛載編輯函式到 window 以供 onclick 呼叫
+  window.editPersonalItem = function(id) {
+    const data = getStorageData();
+    const item = (data.personalItems || []).find(i => i.id === id);
+    if (!item) return;
 
-  <!-- Modal: 新增主團 -->
-  <div id="modal-group" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-      <h2 class="text-lg font-bold text-slate-900">發起新揪團主檔</h2>
-      <form id="form-group" class="space-y-3">
-        <div>
-          <label class="block text-xs font-medium text-slate-700">商品名稱 *</label>
-          <input type="text" name="name" required placeholder="例：咒術迴戰 盲盒徽章 全10種" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700">商品圖片 URL</label>
-          <input type="url" name="imageUrl" placeholder="https://..." class="w-full px-3 py-1.5 border rounded text-sm mt-1">
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-medium text-slate-700">揪團類別</label>
-            <select name="category" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
-              <option value="徽章拆團">徽章拆團</option>
-              <option value="壓克力立牌">壓克力立牌</option>
-              <option value="官方通販代購">官方通販代購</option>
-              <option value="二手煤爐代切">二手煤爐代切</option>
-              <option value="其他">其他</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-700">下單 / 預購日期</label>
-            <input type="date" name="orderDate" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
-          </div>
-        </div>
-        <div class="grid grid-cols-3 gap-3">
-          <div>
-            <label class="block text-xs font-medium text-slate-700">總原幣 (JPY ¥)</label>
-            <input type="number" name="costJpy" min="0" value="0" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-700">台幣成本 (NT$) *</label>
-            <input type="number" name="costTwd" min="0" required value="0" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-700">預估售價 (NT$)</label>
-            <input type="number" name="targetPrice" min="0" value="0" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
-          </div>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700">開團備註</label>
-          <textarea name="notes" rows="2" placeholder="匯率換算依據、國際運費每克計費公式、寄件包材規定等" class="w-full px-3 py-1.5 border rounded text-sm mt-1"></textarea>
-        </div>
-        <div class="flex justify-end space-x-2 pt-3 border-t">
-          <button type="button" id="btn-cancel-group" class="px-4 py-2 border rounded-lg text-sm">取消</button>
-          <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium">建立揪團</button>
-        </div>
-      </form>
-    </div>
-  </div>
+    // 填入既有數據
+    document.getElementById('personal-item-id').value = item.id;
+    document.getElementById('personal-name').value = item.name || '';
+    document.getElementById('personal-imageUrl').value = item.imageUrl || '';
+    document.getElementById('personal-quantity').value = item.quantity || 1;
+    document.getElementById('personal-price').value = item.price || 0;
+    document.getElementById('personal-channel').value = item.channel || '';
+    document.getElementById('personal-paymethod-select').value = item.payMethod || '取貨付款';
+    document.getElementById('personal-deposit').value = item.deposit || 0;
+    document.getElementById('personal-orderDate').value = item.orderDate || '';
+    document.getElementById('personal-arrivalMonth').value = item.arrivalMonth || '';
+    document.getElementById('personal-status').value = item.status || '已喊單';
+    document.getElementById('personal-notes').value = item.notes || '';
 
-  <!-- Modal: 新增/編輯角色認領明細 -->
-  <div id="modal-subitem" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 space-y-4">
-      <h2 class="text-base font-bold text-slate-900">新增認領角色</h2>
-      <form id="form-subitem" class="space-y-3">
-        <input type="hidden" name="groupId" id="subitem-group-id">
-        <div>
-          <label class="block text-xs font-medium text-slate-700">角色 / 款式名稱 *</label>
-          <input type="text" name="characterName" required placeholder="例：五條悟、A賞" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700">認領買家暱稱 / 帳號</label>
-          <input type="text" name="buyer" placeholder="買家帳號" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700">拆團價格 (NT$) *</label>
-          <input type="number" name="price" min="0" required value="0" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-700">買家備註</label>
-          <input type="text" name="buyerNote" placeholder="賣貨便、綁物說明等" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
-        </div>
-        <div class="flex justify-end space-x-2 pt-3 border-t">
-          <button type="button" id="btn-cancel-subitem" class="px-3 py-1.5 border rounded-lg text-xs">取消</button>
-          <button type="submit" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium">儲存</button>
-        </div>
-      </form>
-    </div>
-  </div>
+    // 調整訂金容器顯示
+    if (item.payMethod === '訂金+尾款') {
+      depositContainer.classList.remove('hidden');
+    } else {
+      depositContainer.classList.add('hidden');
+    }
 
-  <!-- 模組化入口腳本 -->
-  <script type="module" src="js/app.js"></script>
-</body>
-</html>
+    modalTitle.textContent = '編輯自購商品';
+    btnSubmit.textContent = '儲存變更';
+    modal.classList.remove('hidden');
+  };
+
+  // 掛載狀態更新函式到 window
+  window.updatePersonalStatus = function(id, newStatus) {
+    const data = getStorageData();
+    const item = (data.personalItems || []).find(i => i.id === id);
+    if (item) {
+      item.status = newStatus;
+      saveStorageData(data);
+      renderCards();
+      window.dispatchEvent(new CustomEvent('data-updated'));
+    }
+  };
+
+  // 初始渲染
+  renderCards();
+}
