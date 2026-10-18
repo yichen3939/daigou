@@ -8,7 +8,6 @@ export const appState = {
   personalSales: []
 };
 
-// 訂閱資料更新的回呼函式清單
 const listeners = [];
 export function subscribeState(cb) {
   listeners.push(cb);
@@ -20,7 +19,6 @@ function notifyAll() {
   });
 }
 
-// 初始化監聽：優先使用 Firebase，次之 localStorage
 export function initStorage() {
   if (isConfigured && db) {
     const rootRef = ref(db, 'merchTracker');
@@ -55,7 +53,6 @@ function loadFromLocalStorage() {
   }
 }
 
-// 儲存資料（同時同步到雲端與 localStorage）
 export async function persistData() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
   if (isConfigured && db) {
@@ -69,7 +66,6 @@ export async function persistData() {
   notifyAll();
 }
 
-// 匯出 JSON
 export function exportToJsonFile() {
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
   const downloadAnchor = document.createElement('a');
@@ -80,7 +76,6 @@ export function exportToJsonFile() {
   downloadAnchor.remove();
 }
 
-// 匯入 JSON
 export function importFromJsonFile(file) {
   const reader = new FileReader();
   reader.onload = (e) => {
