@@ -8,60 +8,114 @@ export function initGroupModule() {
   const formGroup = document.getElementById('form-group');
   const formSubitem = document.getElementById('form-subitem');
 
-  document.getElementById('btn-open-group-modal').addEventListener('click', () => modalGroup.classList.remove('hidden'));
+  const groupEditIdInput = document.getElementById('group-edit-id');
+  const groupModalTitle = document.getElementById('modal-group-title');
+
+  const subitemGroupIdInput = document.getElementById('subitem-group-id');
+  const subitemEditIdInput = document.getElementById('subitem-edit-id');
+  const subitemModalTitle = document.getElementById('modal-subitem-title');
+
+  // 打開新增主團 Modal
+  document.getElementById('btn-open-group-modal').addEventListener('click', () => {
+    formGroup.reset();
+    groupEditIdInput.value = '';
+    groupModalTitle.textContent = '發起新揪團主檔';
+    modalGroup.classList.remove('hidden');
+  });
+
+  // 取消主團 Modal
   document.getElementById('btn-cancel-group').addEventListener('click', () => {
     formGroup.reset();
+    groupEditIdInput.value = '';
     modalGroup.classList.add('hidden');
   });
 
+  // 提交主團表單（新增或編輯）
   formGroup.addEventListener('submit', (e) => {
     e.preventDefault();
     const fd = new FormData(formGroup);
-    const newGroup = {
-      id: 'g_' + Date.now(),
-      name: fd.get('name'),
-      imageUrl: fd.get('imageUrl') || '',
-      category: fd.get('category') || '徽章拆團',
-      orderDate: fd.get('orderDate') || '',
-      costJpy: Number(fd.get('costJpy')) || 0,
-      costTwd: Number(fd.get('costTwd')) || 0,
-      targetPrice: Number(fd.get('targetPrice')) || 0,
-      notes: fd.get('notes') || '',
-      isExpanded: true,
-      items: []
-    };
-    appState.groupOrders.unshift(newGroup);
-    persistData();
+    const editId = groupEditIdInput.value;
 
+    if (editId) {
+      // 編輯既有主團
+      const target = appState.groupOrders.find(g => g.id === editId);
+      if (target) {
+        target.name = fd.get('name');
+        target.imageUrl = fd.get('imageUrl') || '';
+        target.category = fd.get('category') || '徽章拆團';
+        target.orderDate = fd.get('orderDate') || '';
+        target.costJpy = Number(fd.get('costJpy')) || 0;
+        target.costTwd = Number(fd.get('costTwd')) || 0;
+        target.targetPrice = Number(fd.get('targetPrice')) || 0;
+        target.notes = fd.get('notes') || '';
+      }
+    } else {
+      // 新增主團
+      const newGroup = {
+        id: 'g_' + Date.now(),
+        name: fd.get('name'),
+        imageUrl: fd.get('imageUrl') || '',
+        category: fd.get('category') || '徽章拆團',
+        orderDate: fd.get('orderDate') || '',
+        costJpy: Number(fd.get('costJpy')) || 0,
+        costTwd: Number(fd.get('costTwd')) || 0,
+        targetPrice: Number(fd.get('targetPrice')) || 0,
+        notes: fd.get('notes') || '',
+        isExpanded: true,
+        items: []
+      };
+      appState.groupOrders.unshift(newGroup);
+    }
+
+    persistData();
     formGroup.reset();
+    groupEditIdInput.value = '';
     modalGroup.classList.add('hidden');
   });
 
+  // 取消認領角色 Modal
   document.getElementById('btn-cancel-subitem').addEventListener('click', () => {
     formSubitem.reset();
+    subitemEditIdInput.value = '';
     modalSubitem.classList.add('hidden');
   });
 
+  // 提交角色認領表單（新增或編輯）
   formSubitem.addEventListener('submit', (e) => {
     e.preventDefault();
     const fd = new FormData(formSubitem);
-    const groupId = document.getElementById('subitem-group-id').value;
+    const groupId = subitemGroupIdInput.value;
+    const subitemId = subitemEditIdInput.value;
     const targetGroup = appState.groupOrders.find(g => g.id === groupId);
 
     if (targetGroup) {
-      targetGroup.items.push({
-        id: 'c_' + Date.now(),
-        characterName: fd.get('characterName'),
-        buyer: fd.get('buyer') || '未認領',
-        price: Number(fd.get('price')) || 0,
-        firstPaid: false,
-        secondPayAmount: 0,
-        secondPayStatus: '未通知',
-        buyerNote: fd.get('buyerNote') || ''
-      });
+      if (subitemId) {
+        // 編輯認領角色明細
+        const item = targetGroup.items.find(i => i.id === subitemId);
+        if (item) {
+          item.characterName = fd.get('characterName');
+          item.buyer = fd.get('buyer') || '未認領';
+          item.price = Number(fd.get('price')) || 0;
+          item.buyerNote = fd.get('buyerNote') || '';
+        }
+      } else {
+        // 新增認領角色
+        targetGroup.items.push({
+          id: 'c_' + Date.now(),
+          characterName: fd.get('characterName'),
+          buyer: fd.get('buyer') || '未認領',
+          price: Number(fd.get('price')) || 0,
+          firstPaid: false,
+          secondPayAmount: 0,
+          secondPayStatus: '未通知',
+          buyerNote: fd.get('buyerNote') || ''
+        });
+      }
       persistData();
     }
+
     formSubitem.reset();
+    subitemEditIdInput.value = '';
     modalSubitem.classList.add('hidden');
   });
 
@@ -94,6 +148,7 @@ export function renderGroupList() {
 
     return `
       <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm" data-id="${group.id}">
+        <!-- 主團標題列 -->
         <div class="p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 bg-slate-50/50">
           <div class="flex items-center space-x-3">
             <button class="btn-toggle-expand text-slate-400 hover:text-slate-600 transition" data-id="${group.id}">
@@ -123,11 +178,13 @@ export function renderGroupList() {
             </div>
             <div class="flex items-center gap-1.5">
               <button data-id="${group.id}" class="btn-add-subitem px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition">+ 認領項目</button>
-              <button data-id="${group.id}" class="btn-delete-group text-slate-300 hover:text-rose-500 px-2 py-1 text-sm">✕</button>
+              <button data-id="${group.id}" class="btn-edit-group text-slate-400 hover:text-indigo-600 px-2 py-1 text-sm" title="編輯主團">✎</button>
+              <button data-id="${group.id}" class="btn-delete-group text-slate-300 hover:text-rose-500 px-2 py-1 text-sm" title="刪除主團">✕</button>
             </div>
           </div>
         </div>
 
+        <!-- 角色認領列表（可折疊） -->
         <div class="${group.isExpanded ? '' : 'hidden'} p-5">
           <div class="flex justify-between items-center text-xs text-slate-500 pb-3 border-b mb-3">
             <span>一補已收：<strong class="text-slate-800">NT$ ${firstPaidAmount.toLocaleString()}</strong> / 待收：<strong class="text-rose-500">NT$ ${firstUnpaidAmount.toLocaleString()}</strong></span>
@@ -170,8 +227,9 @@ export function renderGroupList() {
                       </button>
                     </td>
                     <td class="py-2.5 text-slate-400 truncate max-w-[120px]">${item.buyerNote || '--'}</td>
-                    <td class="py-2.5 text-right">
-                      <button data-gid="${group.id}" data-cid="${item.id}" class="btn-delete-subitem text-slate-300 hover:text-rose-500">✕</button>
+                    <td class="py-2.5 text-right space-x-1">
+                      <button data-gid="${group.id}" data-cid="${item.id}" class="btn-edit-subitem text-slate-400 hover:text-indigo-600 px-1" title="編輯角色明細">✎</button>
+                      <button data-gid="${group.id}" data-cid="${item.id}" class="btn-delete-subitem text-slate-300 hover:text-rose-500 px-1" title="刪除角色">✕</button>
                     </td>
                   </tr>
                 `).join('')}
@@ -189,6 +247,7 @@ export function renderGroupList() {
 function attachGroupEvents() {
   const container = document.getElementById('group-items-container');
 
+  // 折疊切換
   container.querySelectorAll('.btn-toggle-expand').forEach(btn => {
     btn.addEventListener('click', () => {
       const g = appState.groupOrders.find(item => item.id === btn.dataset.id);
@@ -199,6 +258,29 @@ function attachGroupEvents() {
     });
   });
 
+  // 編輯主團
+  container.querySelectorAll('.btn-edit-group').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const group = appState.groupOrders.find(g => g.id === id);
+      if (!group) return;
+
+      document.getElementById('group-edit-id').value = group.id;
+      document.getElementById('group-field-name').value = group.name;
+      document.getElementById('group-field-image').value = group.imageUrl || '';
+      document.getElementById('group-field-category').value = group.category;
+      document.getElementById('group-field-orderdate').value = group.orderDate || '';
+      document.getElementById('group-field-costjpy').value = group.costJpy || 0;
+      document.getElementById('group-field-costtwd').value = group.costTwd || 0;
+      document.getElementById('group-field-targetprice').value = group.targetPrice || 0;
+      document.getElementById('group-field-notes').value = group.notes || '';
+
+      document.getElementById('modal-group-title').textContent = '編輯揪團主檔';
+      document.getElementById('modal-group').classList.remove('hidden');
+    });
+  });
+
+  // 刪除主團
   container.querySelectorAll('.btn-delete-group').forEach(btn => {
     btn.addEventListener('click', () => {
       if (confirm('確定刪除此揪團主檔與所有角色認領明細嗎？')) {
@@ -208,13 +290,40 @@ function attachGroupEvents() {
     });
   });
 
+  // 開啟認領角色 Modal（新增）
   container.querySelectorAll('.btn-add-subitem').forEach(btn => {
     btn.addEventListener('click', () => {
+      const formSubitem = document.getElementById('form-subitem');
+      formSubitem.reset();
       document.getElementById('subitem-group-id').value = btn.dataset.id;
+      document.getElementById('subitem-edit-id').value = '';
+      document.getElementById('modal-subitem-title').textContent = '新增認領角色';
       document.getElementById('modal-subitem').classList.remove('hidden');
     });
   });
 
+  // 編輯角色認領明細
+  container.querySelectorAll('.btn-edit-subitem').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const gid = btn.dataset.gid;
+      const cid = btn.dataset.cid;
+      const group = appState.groupOrders.find(g => g.id === gid);
+      const item = group?.items.find(i => i.id === cid);
+      if (!item) return;
+
+      document.getElementById('subitem-group-id').value = gid;
+      document.getElementById('subitem-edit-id').value = cid;
+      document.getElementById('subitem-field-char').value = item.characterName;
+      document.getElementById('subitem-field-buyer').value = item.buyer;
+      document.getElementById('subitem-field-price').value = item.price;
+      document.getElementById('subitem-field-note').value = item.buyerNote || '';
+
+      document.getElementById('modal-subitem-title').textContent = '編輯認領角色';
+      document.getElementById('modal-subitem').classList.remove('hidden');
+    });
+  });
+
+  // 刪除角色
   container.querySelectorAll('.btn-delete-subitem').forEach(btn => {
     btn.addEventListener('click', () => {
       const group = appState.groupOrders.find(g => g.id === btn.dataset.gid);
@@ -225,6 +334,7 @@ function attachGroupEvents() {
     });
   });
 
+  // 一補狀態切換
   container.querySelectorAll('.btn-toggle-firstpay').forEach(btn => {
     btn.addEventListener('click', () => {
       const group = appState.groupOrders.find(g => g.id === btn.dataset.gid);
@@ -236,6 +346,7 @@ function attachGroupEvents() {
     });
   });
 
+  // 二補金額修改
   container.querySelectorAll('.input-second-amount').forEach(input => {
     input.addEventListener('change', (e) => {
       const group = appState.groupOrders.find(g => g.id === input.dataset.gid);
@@ -247,6 +358,7 @@ function attachGroupEvents() {
     });
   });
 
+  // 二補狀態循環切換
   container.querySelectorAll('.btn-cycle-secondpay').forEach(btn => {
     btn.addEventListener('click', () => {
       const group = appState.groupOrders.find(g => g.id === btn.dataset.gid);
