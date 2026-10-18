@@ -96,52 +96,6 @@
 
     <!-- 頁籤三：財務統計看板 -->
         <!-- 買家認領與對帳查詢頁籤 -->
-        <!-- 個人出物頁籤 -->
-    <section id="tab-sale" class="tab-pane hidden space-y-6">
-      <!-- 頂部操作與篩選列 -->
-      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-          <input type="text" id="sale-search" placeholder="搜尋出物名稱、買家、通路..." class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-          <select id="sale-pay-filter" class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white">
-            <option value="">全部付款狀態</option>
-            <option value="unpaid">未付款 / 待收尾款</option>
-            <option value="paid">已全額匯款</option>
-          </select>
-          <select id="sale-shipping-filter" class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white">
-            <option value="">全部寄送狀態</option>
-            <option value="未寄出">未寄出</option>
-            <option value="寄出">已寄出</option>
-          </select>
-        </div>
-        <button id="btn-open-sale-modal" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium shadow-sm transition flex items-center space-x-1.5 shrink-0">
-          <span>+</span>
-          <span>新增出物</span>
-        </button>
-      </div>
-
-      <!-- 出物統計 KPI -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <div class="text-[11px] text-slate-500 font-semibold uppercase">出物總件數</div>
-          <div id="sale-kpi-count" class="text-xl font-bold text-slate-900 mt-1">0 件</div>
-        </div>
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <div class="text-[11px] text-slate-500 font-semibold uppercase">已收款收入</div>
-          <div id="sale-kpi-income" class="text-xl font-bold text-emerald-600 mt-1">NT$ 0</div>
-        </div>
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <div class="text-[11px] text-slate-500 font-semibold uppercase">待收未付款</div>
-          <div id="sale-kpi-unpaid" class="text-xl font-bold text-rose-500 mt-1">NT$ 0</div>
-        </div>
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-          <div class="text-[11px] text-slate-500 font-semibold uppercase">待寄出件數</div>
-          <div id="sale-kpi-unshipped" class="text-xl font-bold text-indigo-600 mt-1">0 件</div>
-        </div>
-      </div>
-
-      <!-- 出物商品卡片清單 -->
-      <div id="sale-items-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
-    </section>
     <!-- 個人出物頁籤 -->
     <section id="tab-sale" class="tab-pane hidden space-y-6">
       <!-- 頂部操作與篩選列 -->
