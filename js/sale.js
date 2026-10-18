@@ -64,18 +64,18 @@ export function initSaleModule() {
 
   function updatePreview(src, filename = '') {
     if (src) {
-      imagePreview.src = src;
-      imageFilename.textContent = filename || '已選擇圖片';
-      imagePreviewContainer.classList.remove('hidden');
-      imagePreviewContainer.classList.add('flex');
+      if (imagePreview) imagePreview.src = src;
+      if (imageFilename) imageFilename.textContent = filename || '已選擇圖片';
+      imagePreviewContainer?.classList.remove('hidden');
+      imagePreviewContainer?.classList.add('flex');
       if (imageStatus) {
         imageStatus.textContent = '';
         imageStatus.classList.add('hidden');
       }
     } else {
-      imagePreview.src = '';
-      imagePreviewContainer.classList.add('hidden');
-      imagePreviewContainer.classList.remove('flex');
+      if (imagePreview) imagePreview.src = '';
+      imagePreviewContainer?.classList.add('hidden');
+      imagePreviewContainer?.classList.remove('flex');
       if (imageStatus) {
         imageStatus.textContent = '';
         imageStatus.classList.add('hidden');
@@ -123,7 +123,7 @@ export function initSaleModule() {
           imageStatus.classList.remove('hidden');
         }
         const compressedBase64 = await compressImageFile(file);
-        imageUrlInput.value = compressedBase64;
+        if (imageUrlInput) imageUrlInput.value = compressedBase64;
         updatePreview(compressedBase64, file.name);
       } catch (err) {
         if (imageStatus) {
@@ -153,6 +153,7 @@ export function initSaleModule() {
     updatePreview('');
     updateSaleBuyerDatalist();
     modal?.classList.remove('hidden');
+    modal?.classList.add('flex');
   });
 
   btnCancel?.addEventListener('click', () => {
@@ -160,6 +161,7 @@ export function initSaleModule() {
     if (editIdInput) editIdInput.value = '';
     updatePreview('');
     modal?.classList.add('hidden');
+    modal?.classList.remove('flex');
   });
 
   form?.addEventListener('submit', (e) => {
@@ -218,6 +220,7 @@ export function initSaleModule() {
     form.reset();
     updatePreview('');
     modal?.classList.add('hidden');
+    modal?.classList.remove('flex');
   });
 
   searchInput?.addEventListener('input', () => renderSaleList());
@@ -274,7 +277,6 @@ export function renderSaleList() {
     return matchesSearch && matchesShipping && matchesPay;
   });
 
-  // KPI 試算
   let totalIncome = 0;
   let totalUncollected = 0;
   let totalItemsCount = 0;
@@ -399,7 +401,6 @@ function attachSaleEvents() {
   const container = document.getElementById('sale-items-container');
   if (!container) return;
 
-  // 切換寄送狀態
   container.querySelectorAll('.btn-toggle-sale-shipping').forEach(btn => {
     btn.addEventListener('click', () => {
       const item = (appState.personalSales || []).find(i => i.id === btn.dataset.id);
@@ -410,7 +411,6 @@ function attachSaleEvents() {
     });
   });
 
-  // 編輯出物
   container.querySelectorAll('.btn-edit-sale').forEach(btn => {
     btn.addEventListener('click', () => {
       const item = (appState.personalSales || []).find(i => i.id === btn.dataset.id);
@@ -439,7 +439,8 @@ function attachSaleEvents() {
       form.elements['notes'].value = item.notes || '';
 
       const total = (item.price || 0) * (item.quantity || 1);
-      document.getElementById('sale-total-display').textContent = `NT$ ${total.toLocaleString()}`;
+      const totalDisplay = document.getElementById('sale-total-display');
+      if (totalDisplay) totalDisplay.textContent = `NT$ ${total.toLocaleString()}`;
 
       const depContainer = document.getElementById('sale-deposit-container');
       const depInput = document.getElementById('sale-deposit');
@@ -467,10 +468,10 @@ function attachSaleEvents() {
 
       updateSaleBuyerDatalist();
       modal?.classList.remove('hidden');
+      modal?.classList.add('flex');
     });
   });
 
-  // 刪除出物
   container.querySelectorAll('.btn-delete-sale').forEach(btn => {
     btn.addEventListener('click', () => {
       if (confirm('確定刪除此筆個人出物資料嗎？')) {
