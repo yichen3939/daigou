@@ -1,0 +1,43 @@
+/* 頁籤基礎樣式 */
+.nav-tab {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-bottom-width: 2px;
+  transition: all 0.2s ease-in-out;
+}
+
+.active-tab {
+  color: #4f46e5;
+  border-color: #4f46e5;
+}
+
+.inactive-tab {
+  color: #64748b;
+  border-color: transparent;
+}
+
+.inactive-tab:hover {
+  color: #1e293b;
+  border-color: #cbd5e1;
+}
+
+/* 狀態徽章樣式 */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 9999px;
+}
+
+/* 隱藏滾動條但保持滾動 */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
