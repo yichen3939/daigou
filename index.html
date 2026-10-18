@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>周邊記帳與揪團拆團小幫手</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+  <!-- 偵測 file:// 本機開啟提示 -->
+  <div id="file-protocol-warning" class="hidden bg-amber-500 text-white text-xs font-medium px-4 py-2 text-center sticky top-0 z-50 shadow">
+    ⚠️ 偵測到您直接以本機檔案路徑 (file://) 開啟。現代瀏覽器因安全性原則會阻擋 JavaScript 模組執行（造成圖片上傳與按鈕失效）。請使用 VS Code Live Server 或上傳至 GitHub Pages 瀏覽！
+  </div>
+  <script>
+    if (window.location.protocol === 'file:') {
+      const banner = document.getElementById('file-protocol-warning');
+      if (banner) banner.classList.remove('hidden');
+    }
+  </script>
+
+
+  <!-- 頂部導覽列 -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
+      <div class="flex items-center space-x-3">
+        <span class="text-2xl">📦</span>
+        <h1 class="text-lg font-bold text-slate-900 tracking-tight">周邊記帳與揪團拆團小幫手</h1>
+      </div>
+      <div class="flex items-center space-x-2">
+        <button id="btn-export-json" class="px-3 py-1.5 text-xs font-medium border border-slate-300 rounded hover:bg-slate-100 transition">匯出 JSON</button>
+        <label class="px-3 py-1.5 text-xs font-medium border border-slate-300 rounded hover:bg-slate-100 cursor-pointer transition">
+          匯入 JSON
+          <input type="file" id="file-import-json" accept=".json" class="hidden">
+        </label>
+      </div>
+    </div>
+
+    <!-- 頁籤切換按鈕列 -->
+    <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-8 border-t border-slate-100">
+      <button class="nav-tab active-tab" data-target="tab-personal">個人自購清單</button>
+      <button class="nav-tab inactive-tab" data-target="tab-group">揪團拆團與代購</button>
+      <button class="nav-tab inactive-tab" data-target="tab-dashboard">財務統計看板</button>
+    </nav>
+  </header>
+
+  <!-- 主內容容器 -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- 頁籤一：個人自購模組 -->
+    <section id="tab-personal" class="tab-pane">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+        <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+          <input type="text" id="personal-search" placeholder="搜尋商品名稱 / 購買管道..." class="px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-64">
+          <select id="personal-filter-status" class="px-3 py-1.5 text-sm border rounded-lg bg-white">
+            <option value="">全部物流狀態</option>
+            <option value="已喊單">已喊單</option>
+            <option value="賣貨便已下單">賣貨便已下單</option>
+            <option value="已完成">已完成</option>
+          </select>
+          <select id="personal-filter-pay" class="px-3 py-1.5 text-sm border rounded-lg bg-white">
+            <option value="">全部付款方式</option>
+            <option value="取貨付款">取貨付款</option>
+            <option value="全額匯款">全額匯款</option>
+            <option value="訂金+尾款">訂金+尾款</option>
+            <option value="信用卡">信用卡</option>
+          </select>
+        </div>
+        <button id="btn-open-personal-modal" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition shrink-0">+ 新增自購商品</button>
+      </div>
+
+      <div id="personal-items-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <!-- 動態渲染自購卡片 -->
+      </div>
+    </section>
+
+    <!-- 頁籤二：揪團拆團模組 -->
+    <section id="tab-group" class="tab-pane hidden">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+        <div class="flex items-center gap-2 w-full sm:w-auto">
+          <input type="text" id="group-search" placeholder="搜尋主商品 / 角色 / 買家帳號..." class="px-3 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-80">
+        </div>
+        <button id="btn-open-group-modal" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition shrink-0">+ 發起新揪團</button>
+      </div>
+
+      <div id="group-items-container" class="space-y-6">
+        <!-- 動態渲染主團與角色列表 -->
+      </div>
+    </section>
+
+    <!-- 頁籤三：財務統計看板 -->
+    <section id="tab-dashboard" class="tab-pane hidden space-y-8">
+      <!-- 4 大 KPI 卡片 -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">自購總花費</div>
+          <div id="kpi-personal-cost" class="text-2xl font-bold text-slate-900 mt-2">NT$ 0</div>
+          <div id="kpi-personal-deposit" class="text-xs text-amber-600 mt-1">已付訂金：NT$ 0</div>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">揪團總成本</div>
+          <div id="kpi-group-cost" class="text-2xl font-bold text-slate-900 mt-2">NT$ 0</div>
+          <div id="kpi-group-cost-jpy" class="text-xs text-slate-500 mt-1">折合日幣：¥ 0</div>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">一補收款進度</div>
+          <div id="kpi-first-pay-progress" class="text-2xl font-bold text-emerald-600 mt-2">NT$ 0 / 0</div>
+          <div id="kpi-first-pay-unpaid" class="text-xs text-rose-500 mt-1">待收一補：NT$ 0</div>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">二補追蹤</div>
+          <div id="kpi-second-pay-amount" class="text-2xl font-bold text-blue-600 mt-2">NT$ 0</div>
+          <div id="kpi-second-pay-count" class="text-xs text-slate-500 mt-1">待補款人數：0 人</div>
+        </div>
+      </div>
+
+      <!-- 圖表區 -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-700 mb-4">自購通路支出分佈</h3>
+          <div class="relative h-64">
+            <canvas id="chart-personal-channel"></canvas>
+          </div>
+        </div>
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-700 mb-4">揪團成本 vs 實收總覽</h3>
+          <div class="relative h-64">
+            <canvas id="chart-group-finance"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal: 新增自購商品 -->
+  <div id="modal-personal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+      <h2 id="modal-personal-title" class="text-lg font-bold text-slate-900">新增個人自購商品</h2>
+      <form id="form-personal" class="space-y-3">
+        <input type="hidden" name="id" id="personal-edit-id" value="">
+        <div>
+          <label class="block text-xs font-medium text-slate-700">商品名稱 *</label>
+          <input type="text" name="name" required class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700">商品圖片 (支援網址或由電腦上傳)</label>
+          <div class="mt-1 flex gap-2">
+            <input type="text" name="imageUrl" id="personal-image-url" placeholder="https://... 或點右側按鈕上傳" class="flex-1 px-3 py-1.5 border rounded text-sm">
+            <label for="personal-image-file" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-medium cursor-pointer border border-slate-300 flex items-center shrink-0 transition">
+              📁 上傳圖片
+            </label>
+            <input type="file" id="personal-image-file" accept="image/*" class="sr-only">
+          </div>
+          <div id="personal-image-status" class="mt-1.5 text-xs text-indigo-600 font-medium hidden"></div>
+          <div id="personal-image-preview-container" class="mt-2 hidden items-center gap-3 p-2 bg-slate-50 border border-slate-200 rounded-lg">
+            <img id="personal-image-preview" src="" class="w-14 h-14 object-cover rounded border border-slate-200" alt="預覽圖">
+            <div class="text-xs">
+              <span id="personal-image-filename" class="text-slate-700 block font-medium">已選擇圖片</span>
+              <span class="text-emerald-600 font-medium text-[11px] block mt-0.5">✅ 上傳成功，已就緒</span>
+              <button type="button" id="btn-remove-personal-image" class="text-rose-500 hover:underline mt-1 inline-block">移除此圖片</button>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-700">購買數量 *</label>
+            <input type="number" name="quantity" min="1" value="1" required class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-700">單價 (NT$) *</label>
+            <input type="number" name="price" min="0" required class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700">賣家 / 購買管道</label>
+          <input type="text" name="channel" placeholder="例：煤爐代購、安利美特" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-700">付款方式</label>
+            <select name="payMethod" id="personal-paymethod-select" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+              <option value="取貨付款">取貨付款</option>
+              <option value="全額匯款">全額匯款</option>
+              <option value="訂金+尾款">訂金+尾款</option>
+              <option value="信用卡">信用卡</option>
+            </select>
+          </div>
+          <div id="field-deposit-container" class="hidden">
+            <label class="block text-xs font-medium text-slate-700">已付訂金 (NT$) *</label>
+            <input type="number" name="deposit" min="0" value="0" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-700">下單日期</label>
+            <input type="date" name="orderDate" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-700">預計抵台月份</label>
+            <input type="month" name="arrivalMonth" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700">物流進度</label>
+          <select name="status" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+            <option value="已喊單">已喊單</option>
+            <option value="賣貨便已下單">賣貨便已下單</option>
+            <option value="已完成">已完成</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700">備註說明</label>
+          <textarea name="notes" rows="2" placeholder="寄件單號、賣貨便單號等" class="w-full px-3 py-1.5 border rounded text-sm mt-1"></textarea>
+        </div>
+        <div class="flex justify-end space-x-2 pt-3 border-t">
+          <button type="button" id="btn-cancel-personal" class="px-4 py-2 border rounded-lg text-sm">取消</button>
+          <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium">儲存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+    <!-- Modal: 新增/編輯揪團與代購主檔 -->
+    <!-- Modal: 新增/編輯揪團主檔 (第1層) -->
+  <div id="modal-group" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+      <h2 id="modal-group-title" class="text-lg font-bold text-slate-900">發起新揪團主檔</h2>
+      <form id="form-group" class="space-y-3">
+        <input type="hidden" name="id" id="group-edit-id" value="">
+        <div>
+          <label class="block text-xs font-medium text-slate-700">商品名稱 *</label>
+          <input type="text" name="name" required placeholder="例：我英11" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700">商品圖片 (支援網址或由電腦上傳)</label>
+          <div class="mt-1 flex gap-2">
+            <input type="text" name="imageUrl" id="group-image-url" placeholder="https://... 或點右側按鈕上傳" class="flex-1 px-3 py-1.5 border rounded text-sm">
+            <label for="group-image-file" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-medium cursor-pointer border border-slate-300 flex items-center shrink-0 transition">
+              📁 上傳圖片
+            </label>
+            <input type="file" id="group-image-file" accept="image/*" class="sr-only">
+          </div>
+          <div id="group-image-status" class="mt-1.5 text-xs text-indigo-600 font-medium hidden"></div>
+          <div id="group-image-preview-container" class="mt-2 hidden items-center gap-3 p-2 bg-slate-50 border border-slate-200 rounded-lg">
+            <img id="group-image-preview" src="" class="w-14 h-14 object-cover rounded border border-slate-200" alt="預覽圖">
+            <div class="text-xs">
+              <span id="group-image-filename" class="text-slate-700 block font-medium">已選擇圖片</span>
+              <span class="text-emerald-600 font-medium text-[11px] block mt-0.5">✅ 上傳成功，已就緒</span>
+              <button type="button" id="btn-remove-group-image" class="text-rose-500 hover:underline mt-1 inline-block">移除此圖片</button>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-700">下單 / 預購日期</label>
+            <input type="date" name="orderDate" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-700">賣家 / 代購店家</label>
+            <input type="text" name="seller" placeholder="例：駿河屋、煤爐代購" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700">是否要二補 *</label>
+          <select name="needSecondPay" class="w-full px-3 py-1.5 border rounded text-sm mt-1 bg-white">
+            <option value="否">否 (不需二補 / 已含運費)</option>
+            <option value="是">是 (後續需補國際運費/台灣運費)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700">開團備註</label>
+          <textarea name="notes" rows="2" placeholder="匯率換算依據、國際運費說明、寄件包材規定等" class="w-full px-3 py-1.5 border rounded text-sm mt-1"></textarea>
+        </div>
+        <div class="flex justify-end space-x-2 pt-3 border-t">
+          <button type="button" id="btn-cancel-group" class="px-4 py-2 border rounded-lg text-sm">取消</button>
+          <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium">儲存主團</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: 新增/編輯類別 (第2層) -->
+  <div id="modal-category" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 space-y-4">
+      <h2 id="modal-category-title" class="text-base font-bold text-slate-900">新增商品類別</h2>
+      <form id="form-category" class="space-y-3">
+        <input type="hidden" name="groupId" id="category-group-id">
+        <input type="hidden" name="categoryId" id="category-edit-id" value="">
+        <div>
+          <label class="block text-xs font-medium text-slate-700">類別名稱 (自填) *</label>
+          <input type="text" name="name" required placeholder="例：徽章、小卡、壓克力立牌" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-700">類別金額 (JPY ¥)</label>
+            <input type="number" name="costJpy" min="0" value="0" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-700">類別金額 (NT$)</label>
+            <input type="number" name="costTwd" min="0" value="0" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+          </div>
+        </div>
+        <div class="flex justify-end space-x-2 pt-3 border-t">
+          <button type="button" id="btn-cancel-category" class="px-3 py-1.5 border rounded-lg text-xs">取消</button>
+          <button type="submit" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium">儲存類別</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: 新增/編輯角色認領明細 (第3層) -->
+  <div id="modal-subitem" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 space-y-4">
+      <h2 id="modal-subitem-title" class="text-base font-bold text-slate-900">新增認領角色</h2>
+      <form id="form-subitem" class="space-y-3">
+        <input type="hidden" name="groupId" id="subitem-group-id">
+        <input type="hidden" name="categoryId" id="subitem-category-id">
+        <input type="hidden" name="subitemId" id="subitem-edit-id" value="">
+        <div>
+          <label class="block text-xs font-medium text-slate-700">角色 / 款式名稱 *</label>
+          <input type="text" name="characterName" required placeholder="例：綠谷、爆豪、A賞" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700">認領買家暱稱 / 帳號</label>
+          <input type="text" name="buyer" placeholder="買家帳號" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700">我賣的台幣金額 (NT$) *</label>
+          <input type="number" name="price" id="subitem-price" min="0" required value="0" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700">是否匯款 / 付款狀態 *</label>
+          <select name="payStatus" id="subitem-paystatus-select" class="w-full px-3 py-1.5 border rounded text-sm mt-1 bg-white">
+            <option value="未匯款">未匯款</option>
+            <option value="已全額匯款">已全額匯款</option>
+            <option value="訂金">付訂金 (需補尾款)</option>
+          </select>
+        </div>
+        <div id="subitem-deposit-container" class="hidden p-3 bg-amber-50/60 rounded-lg border border-amber-200 space-y-2">
+          <div>
+            <label class="block text-xs font-medium text-amber-800">已收訂金 (NT$) *</label>
+            <input type="number" name="deposit" id="subitem-deposit" min="0" value="0" class="w-full px-3 py-1.5 border rounded text-sm mt-1 bg-white">
+          </div>
+          <div class="text-xs text-amber-700 flex justify-between pt-1">
+            <span>剩餘還需付款：</span>
+            <span id="subitem-remaining-display" class="font-bold text-rose-600">NT$ 0</span>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-700">買家備註</label>
+          <input type="text" name="buyerNote" placeholder="賣貨便、綁物說明等" class="w-full px-3 py-1.5 border rounded text-sm mt-1">
+        </div>
+        <div class="flex justify-end space-x-2 pt-3 border-t">
+          <button type="button" id="btn-cancel-subitem" class="px-3 py-1.5 border rounded-lg text-xs">取消</button>
+          <button type="submit" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium">儲存認領</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 模組化入口腳本 -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
